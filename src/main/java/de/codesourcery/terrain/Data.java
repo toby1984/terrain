@@ -6,7 +6,7 @@ import java.util.Random;
 public class Data
 {
     public final byte[] height;
-    public final byte[] water;
+    public final float[] water;
     public final byte[] sediment;
     public final int size;
 
@@ -14,7 +14,7 @@ public class Data
     {
         this.size = size;
         this.height = new byte[size*size];
-        this.water = new byte[size*size];
+        this.water = new float[size*size];
         this.sediment = new byte[size*size];
     }
 
@@ -41,7 +41,7 @@ public class Data
         for ( int i = 0 ; i < size*size; i++)
         {
             int h = height[i] & 0xff;
-            water[i] = (byte) (h > minHeight ? 255 : 0);
+            water[i] = h > minHeight ? 255 : 0;
         }
         Arrays.fill(sediment,(byte) 0);
     }
@@ -52,14 +52,13 @@ public class Data
 
         final float percMovedPerTick = 0.1f; // 0..1
 
-        final byte[] waterCopy = new byte[ size*size ];
-        System.arraycopy( this.water,0,waterCopy,0,size*size );
+        final float[] waterCopy = new float[ size*size ];
 
         for (int x = 0; x < size; x++)
         {
             for (int y = 0; y < size; y++)
             {
-                final int w = water( x, y );
+                final float w = water( x, y );
                 if ( w == 0 )
                 {
                     continue;
@@ -84,7 +83,7 @@ public class Data
                             int ry = y + grady;
                             int h2 = height(rx,ry);
                             final int grad = h - h2;
-                            if ( grad > 0 )
+                            if ( grad >= 0 )
                             {
                                 // ok, downstream
                                 gradients[ (1+grady)*3 + 1 + gradx] = grad;
@@ -96,7 +95,7 @@ public class Data
                 if ( gradCount > 0 ) {
                     // distribute water from current grid location
                     // according to gradients
-                    final int fraction = (int) ( percMovedPerTick * w / (float) gradCount);
+                    final float fraction = percMovedPerTick * w / gradCount;
                     for ( int ix = -1 ; ix < 2 ; ix++)
                     {
                         for ( int iy = -1 ; iy < 2 ; iy++)
@@ -106,16 +105,18 @@ public class Data
                                 if ( grad > 0 )
                                 {
                                     final int idx = (y+iy)*size + (x+ix);
-                                    int oldValue = water[idx];
-                                    int newValue = oldValue + fraction;
-                                    waterCopy[idx] = (byte) (newValue > 255 ? 255 : newValue < 0 ? 0 : newValue);
+                                    float oldValue = water[idx];
+                                    float newValue = oldValue + fraction;
+                                    waterCopy[idx] = newValue < 0 ? 0 : newValue;
                                 }
                             }
                         }
                     }
-                    int oldValue = (int) (percMovedPerTick * water[y*size+x]);
-                    int newValue = waterCopy[y*size+x] - oldValue;
-                    waterCopy[ y*size + x ] = (byte) (newValue > 255 ? 255 : newValue < 0 ? 0 : newValue);
+                    float oldValue = (percMovedPerTick * water[y*size+x]);
+                    float newValue = waterCopy[y*size+x] - oldValue;
+                    waterCopy[ y*size + x ] = newValue < 0 ? 0 : newValue;
+                } else {
+                    waterCopy[ y*size + x ] = w;
                 }
             }
         }
@@ -127,19 +128,8 @@ public class Data
         Arrays.fill(sediment,(byte)0);
     }
 
-    public int water(int x,int y) {
-        return this.water[y*size+x] & 0xff;
-    }
-
-    public void setWater(int x,int y,int value) {
-        this.water[ y*size+x ] = (byte) (value < 0 ? 0 : value > 255 ? 255 : value);
-    }
-
-    public void incWater(int x,int y,int increment)
-    {
-        final int idx = y * size + x;
-        final int value = water[ idx ] + increment;
-        this.water[ idx ] = (byte) (value < 0 ? 0 : value > 255 ? 255 : value);
+    public float water(int x,int y) {
+        return this.water[y*size+x];
     }
 
     public Data initHeights(long seed,float startScale,int range,float scaleReduction,boolean normalize)

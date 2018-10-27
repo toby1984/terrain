@@ -19,12 +19,12 @@ public class Main extends JFrame
     private static final boolean COLORIZE = false;
     private static final boolean NORMALIZE = true;
 
-    private static final int WATER_MINHEIGHT = 240;
+    private static final int WATER_MINHEIGHT = 210;
 
     private static final float START_SCALE = 1f;
-    private static final float SCALE_REDUCE = 0.7f;
-    private static final int RND_RANGE = 10;
-    private static final int SIZE = 257;
+    private static final float SCALE_REDUCE = 0.5f;
+    private static final int RND_RANGE = 5;
+    private static final int SIZE = 33;
 
     private static final int[] WATER_GRADIENT = new int[256];
 
@@ -126,13 +126,13 @@ public class Main extends JFrame
             addKeyListener( new KeyAdapter()
             {
                 @Override
-                public void keyReleased(KeyEvent e)
+                public void keyTyped(KeyEvent e)
                 {
-                    if ( e.getKeyCode() == KeyEvent.VK_W ) {
+                    if ( e.getKeyChar() == 'w' ) {
                         System.out.println("Water initialized @ "+WATER_MINHEIGHT);
                         data.initWater( WATER_MINHEIGHT);
                     }
-                    else if ( e.getKeyCode() == KeyEvent.VK_SPACE ) {
+                    else if ( e.getKeyChar() == ' ') {
                         System.out.println("STEP");
                         data.flow();
                     }
@@ -194,9 +194,10 @@ public class Main extends JFrame
             {
                 for (int y = 0; y < SIZE; y++)
                 {
-                    int w = data.water(x,y);
+                    float w = data.water(x,y);
                     if ( w > 0 ) {
-                        image.setRGB(x,y,WATER_GRADIENT[w]);
+//                        image.setRGB(x,y,WATER_GRADIENT[w]);
+                        image.setRGB(x,y,Color.BLUE.getRGB());
                     }
                 }
             }
