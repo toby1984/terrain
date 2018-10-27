@@ -6,7 +6,9 @@ import java.util.Random;
 public class Data
 {
     public final byte[] height;
+
     public final float[] water;
+    public final float[] capacity;
     public final byte[] sediment;
     public final int size;
 
@@ -15,6 +17,7 @@ public class Data
         this.size = size;
         this.height = new byte[size*size];
         this.water = new float[size*size];
+        this.capacity = new float[size*size];
         this.sediment = new byte[size*size];
     }
 
@@ -55,77 +58,189 @@ public class Data
     {
         final int[] gradients = new int[9];
 
-        final float percMovedPerTick = 0.1f; // 0..1
+        final float[] newWaterLevel = new float[ size*size ];
 
-        final float[] waterCopy = new float[ size*size ];
+        float sum1 = getWaterSum();
 
         for (int x = 0; x < size; x++)
         {
             for (int y = 0; y < size; y++)
             {
-                final float w = water( x, y );
-                if ( w == 0 )
-                {
-                    continue;
-                }
+                final float currentWaterLevel = water( x, y );
 
-                final int h = height(x,y);
+                final int currentHeight = height(x,y);
                 // ok, there's water inside the current square,
                 // calculate gradients
-                final int minx = x == 0 ? 1 : -1;
-                final int maxx = x == size - 1 ? -1 : 1;
-                final int miny = y == 0 ? 1 : -1;
-                final int maxy = y == size - 1 ? -1 : 1;
-                Arrays.fill( gradients,0 );
+                Arrays.fill( gradients,-1 );
                 int gradCount = 0;
-                for (int gradx = minx; gradx <= maxx; gradx++)
+                float lowestNeightbour = Float.MAX_VALUE;
+                for (int gradx = -1 ; gradx <= 1; gradx++)
                 {
-                    for (int grady = miny; grady <= maxy; grady++)
+                    for (int grady = -1 ; grady <= 1; grady++)
                     {
-                        if ( gradx != 0 && grady != 0 )
+                        if ( gradx != 0 || grady != 0 )
                         {
-                            int rx = x + gradx;
-                            int ry = y + grady;
-                            int h2 = height(rx,ry);
-                            final int grad = h - h2;
-                            if ( grad >= 0 )
+                            final int rx = x + gradx;
+                            final int ry = y + grady;
+                            if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
                             {
-                                // ok, downstream
-                                gradients[ (1+grady)*3 + 1 + gradx] = grad;
-                                gradCount++;
-                            }
-                        }
-                    }
-                }
-                if ( gradCount > 0 ) {
-                    // distribute water from current grid location
-                    // according to gradients
-                    final float fraction = percMovedPerTick * w / gradCount;
-                    for ( int ix = -1 ; ix < 2 ; ix++)
-                    {
-                        for ( int iy = -1 ; iy < 2 ; iy++)
-                        {
-                            if ( ix !=0 && iy !=0 ) {
-                                int grad = gradients[ (1+iy) * 3 + 1 + ix];
-                                if ( grad > 0 )
+                                int h2 = height( rx, ry );
+                                lowestNeightbour = Math.min( lowestNeightbour , h2 );
+                                final int grad = currentHeight - h2;
+                                if ( grad >= 0 )
                                 {
-                                    final int idx = (y+iy)*size + (x+ix);
-                                    float oldValue = water[idx];
-                                    float newValue = oldValue + fraction;
-                                    waterCopy[idx] = newValue < 0 ? 0 : newValue;
+                                    // ok, downstream or same height
+                                    gradients[(1 + grady) * 3 + 1 + gradx] = grad;
+                                    gradCount++;
                                 }
                             }
                         }
                     }
-                    float oldValue = (percMovedPerTick * water[y*size+x]);
-                    float newValue = waterCopy[y*size+x] - oldValue;
-                    waterCopy[ y*size + x ] = newValue < 0 ? 0 : newValue;
+                }
+                float cap = lowestNeightbour - currentHeight;
+                if ( cap > 0 ) {
+                    capacity[ y*size +x ] = cap;
+                }
+
+                if ( currentWaterLevel == 0 )
+                {
+                    continue;
+                }
+
+                if ( gradCount > 0 ) {
+                    System.out.println("Cell "+x+","+y+" has "+gradCount+" lower neighbours");
+                    // distribute water from current grid location
+                    // according to gradients
+                    final float fraction = currentWaterLevel / gradCount;
+                    for ( int ix = -1 ; ix <= 1 ; ix++)
+                    {
+                        for ( int iy = -1 ; iy <= 1 ; iy++)
+                        {
+                            if ( ix !=0 || iy !=0 )
+                            {
+                                int grad = gradients[ (1+iy) * 3 + 1 + ix];
+                                if ( grad >= 0 )
+                                {
+                                    final int idx = (y+iy)*size + (x+ix);
+                                    System.out.println("Adding to ("+(x+ix)+","+(y+iy)+": "+fraction);
+                                    newWaterLevel[idx] += fraction;
+                                }
+                            }
+                        }
+                    }
+                    newWaterLevel[y*size+x] = 0;
                 } else {
-                    waterCopy[ y*size + x ] = w;
+                    newWaterLevel[y*size+x] += currentWaterLevel;
                 }
             }
         }
-        System.arraycopy( waterCopy, 0 , water, 0 , size*size );
+
+        float sum2 = getWaterSum(newWaterLevel);
+
+        boolean doSpill = false;
+        if ( doSpill )
+        {
+            // spill
+            for (int x = 0; x < size; x++)
+            {
+                for (int y = 0; y < size; y++)
+                {
+                    float waterLevel = newWaterLevel[y * size + x];
+                    float capacity = this.capacity[y * size + x];
+                    if ( waterLevel > capacity )
+                    {
+                        // distribute remainder to lowest neighbour
+                        float toDistribute = waterLevel - capacity;
+
+                        // find lowest neightbour
+                        int lowestX = -1;
+                        int lowestY = -1;
+                        int lowestHeight = 123456;
+                        for (int gradx = -1; gradx <= 1; gradx++)
+                        {
+                            for (int grady = -1; grady <= 1; grady++)
+                            {
+                                if ( gradx != 0 || grady != 0 )
+                                {
+                                    final int rx = x + gradx;
+                                    final int ry = y + grady;
+                                    if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
+                                    {
+                                        int h2 = height( rx, ry );
+
+                                        if ( h2 < lowestHeight )
+                                        {
+                                            lowestHeight = h2;
+                                            lowestX = rx;
+                                            lowestY = ry;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // we've moved the excess water
+                        newWaterLevel[y * size + x] = capacity;
+                        // move excess water to lowest neighbour
+                        float newValue = newWaterLevel[lowestY * size + lowestX] + toDistribute;
+                        newWaterLevel[lowestY * size + lowestX] = newValue;
+
+                        if ( newValue > capacity( lowestX, lowestY ) )
+                        {
+                            // water level in neighbour cell exceeds it's capacity,
+                            // raise the capacity of the current cell to
+                            // the same amount as the lowest neighbour
+                            float excess = newValue - capacity( lowestX, lowestY );
+                            float toMove = Math.min( height( lowestX, lowestY ) - height( x, y ), excess );
+                            this.capacity[y * size + x] = capacity( lowestX, lowestY );
+                            newWaterLevel[y * size + x] += toMove;
+                            newWaterLevel[lowestY * size + lowestX] -= toMove;
+                        }
+                    }
+                }
+            }
+        }
+
+        System.arraycopy( newWaterLevel, 0 , water, 0 , size*size );
+
+        float sum3 = getWaterSum();
+        System.out.println("initial: "+sum1+" -> before spill: "+sum2+" -> after spill: "+sum3);
+    }
+
+    private void calcCapacity()
+    {
+        for ( int x = 0 ; x < size ; x++ )
+        {
+            for ( int y =0 ; y < size ; y++ )
+            {
+                final int currentHeight = height(x,y);
+                int lowestNeightbour = 1234567;
+                float capacity = 0;
+                for (int gradx = -1 ; gradx <= 1; gradx++)
+                {
+                    for (int grady = -1 ; grady <= 1; grady++)
+                    {
+                        if ( gradx != 0 || grady != 0 )
+                        {
+                            final int rx = x + gradx;
+                            final int ry = y + grady;
+                            if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
+                            {
+                                int h2 = height( rx, ry );
+                                lowestNeightbour = Math.min( lowestNeightbour , h2 );
+                                if ( lowestNeightbour >= currentHeight )
+                                {
+                                    capacity = lowestNeightbour - currentHeight;
+                                } else {
+                                    capacity = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                this.capacity[y*size+x] = capacity;
+            }
+        }
     }
 
     public void clearWater() {
@@ -135,6 +250,10 @@ public class Data
 
     public float water(int x,int y) {
         return this.water[y*size+x];
+    }
+
+    public float capacity(int x,int y) {
+        return this.capacity[y*size+x];
     }
 
     public Data initHeights(long seed,float startScale,int range,float scaleReduction,boolean normalize)
@@ -247,6 +366,7 @@ public class Data
                 height[i] = (byte) newValue;
             }
         }
+        calcCapacity();
         return this;
     }
 
@@ -270,6 +390,23 @@ public class Data
             System.err.flush();
             throw e;
         }
+    }
+
+    public float getWaterSum() {
+        return getWaterSum(water);
+    }
+
+    private float getWaterSum(float[] water) {
+        float sum = 0f;
+        for ( int i = 0 ; i < size*size ; i++ ) {
+            sum += water[i];
+        }
+        return sum;
+    }
+
+    public void setWater(int x,int y,float value)
+    {
+        this.water[ y*size + x ] = value;
     }
 
     public void setHeight(int x,int y,int value)

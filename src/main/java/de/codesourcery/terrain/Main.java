@@ -10,6 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferedImage;
@@ -27,7 +28,7 @@ public class Main extends JFrame
     private static final float START_SCALE = 1f;
     private static final float SCALE_REDUCE = 0.7f;
     private static final int RND_RANGE = 100;
-    private static final int SIZE = 513;
+    private static final int SIZE = 9;
 
     private static final int[] WATER_GRADIENT = new int[256];
 
@@ -131,12 +132,29 @@ public class Main extends JFrame
 
             setFocusable( true );
             requestFocus();
+            addMouseListener( new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent e)
+                {
+                    int squareX = (int) (e.getX() / scaleX);
+                    int squareY = (int) (e.getY() / scaleY);
+                    if ( squareX >= 0 && squareY >= 0 && squareX < SIZE && squareY < SIZE ) {
+                        if ( e.getButton() == MouseEvent.BUTTON1 ) {
+                            data.setWater(squareX,squareY,255);
+                        } else if ( e.getButton() == MouseEvent.BUTTON3 ) {
+                            data.setWater(squareX,squareY,0);
+                        }
+                        repaint();
+                    }
+                }
+            });
+
             addMouseMotionListener( new MouseMotionAdapter()
             {
                 @Override
                 public void mouseMoved(MouseEvent e)
                 {
-                    super.mouseMoved( e );
                     int squareX = (int) (e.getX() / scaleX);
                     int squareY = (int) (e.getY() / scaleY);
                     if ( squareX >= 0 && squareY >= 0 && squareX < SIZE && squareY < SIZE ) {
@@ -260,13 +278,17 @@ public class Main extends JFrame
                 final int x2 = (int) ((squareX +1) * scaleX);
                 final int y2 = (int) ((squareY +1) * scaleY);
                 g.drawRect( x1,y1, x2-x1, y2-y1);
+                g.setFont( getFont().deriveFont( 20f ) );
                 int y = 20;
+                final int fontHeight = 20;
                 g.drawString("Position: "+squareX+" / "+squareY, 10 , y );
-                y += 20;
+                y += fontHeight;
                 g.drawString("Height: "+data.height( squareX, squareY ), 10,y );
-                y += 20;
+                y += fontHeight;
                 g.drawString("Water: "+data.water( squareX, squareY ), 10,y );
-                y += 20;
+                y += fontHeight;
+                g.drawString("Capacity: "+data.capacity( squareX, squareY ), 10,y );
+                y += fontHeight;
             }
         }
     }
