@@ -29,6 +29,11 @@ public class Data
             this.range = range;
         }
 
+        private int rndValue()
+        {
+            return rndValue(1.0f);
+        }
+
         private int rndValue(float scale)
         {
             final float value = rnd.nextFloat()*range;
@@ -139,7 +144,9 @@ public class Data
         Arrays.fill(height,(byte) 0);
 
         final byte[] tmp = new byte[4];
-        rnd.rnd.nextBytes( tmp );
+        for ( int i = 0 ; i < tmp.length ; i++ ) {
+            tmp[i] = (byte) rnd.rndValue();
+        }
         setHeight(0,0, tmp[0] );
         setHeight(size-1,0, tmp[1] );
         setHeight(0,size-1, tmp[2] );
