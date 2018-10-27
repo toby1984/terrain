@@ -1,24 +1,49 @@
 package de.codesourcery.terrain;
 
+import java.awt.Point;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 public class Data
 {
     public final byte[] height;
-
     public final float[] water;
-    public final float[] capacity;
-    public final byte[] sediment;
     public final int size;
+
+    public void save(OutputStream out) throws IOException {
+        writeInt(size,out);
+        writeArray( height,out );
+        writeArray( water,out );
+    }
+
+    public static Data read(InputStream in) throws IOException {
+        final int size = readInt(in);
+        final Data result = new Data(size);
+        byte[] byteArray = readByteArray(in);
+        System.arraycopy( byteArray,0,result.height,0,size*size );
+
+        float[] floatArray = readFloatArray(in);
+        System.arraycopy( floatArray,0,result.water,0,size*size );
+
+        return result;
+    }
 
     public Data(int size)
     {
         this.size = size;
         this.height = new byte[size*size];
         this.water = new float[size*size];
-        this.capacity = new float[size*size];
-        this.sediment = new byte[size*size];
+    }
+
+    public void clear() {
+        Arrays.fill( height,(byte) 0);
+        Arrays.fill( water,0);
     }
 
     private final class RandomGen
@@ -51,174 +76,34 @@ public class Data
             int h = height[i] & 0xff;
             water[i] = h > minHeight ? 255 : 0;
         }
-        Arrays.fill(sediment,(byte) 0);
     }
 
-    public void flow()
+    private float trueHeight(int x,int y) {
+        return height(x,y)+water(x,y);
+    }
+
+    public void pour(int nx,int ny,float amount)
     {
-        final int[] gradients = new int[9];
+        incWater( nx,ny,amount );
+        flow();
+    }
 
-        final float[] newWaterLevel = new float[ size*size ];
+    public void flow() {
 
-        float sum1 = getWaterSum();
-
-        for (int x = 0; x < size; x++)
+        for ( int x = 0 ; x < size ; x++ )
         {
             for (int y = 0; y < size; y++)
             {
-                final float currentWaterLevel = water( x, y );
-
-                final int currentHeight = height(x,y);
-                // ok, there's water inside the current square,
-                // calculate gradients
-                Arrays.fill( gradients,-1 );
-                int gradCount = 0;
-                float lowestNeightbour = Float.MAX_VALUE;
-                for (int gradx = -1 ; gradx <= 1; gradx++)
-                {
-                    for (int grady = -1 ; grady <= 1; grady++)
-                    {
-                        if ( gradx != 0 || grady != 0 )
-                        {
-                            final int rx = x + gradx;
-                            final int ry = y + grady;
-                            if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
-                            {
-                                int h2 = height( rx, ry );
-                                lowestNeightbour = Math.min( lowestNeightbour , h2 );
-                                final int grad = currentHeight - h2;
-                                if ( grad >= 0 )
-                                {
-                                    // ok, downstream or same height
-                                    gradients[(1 + grady) * 3 + 1 + gradx] = grad;
-                                    gradCount++;
-                                }
-                            }
-                        }
-                    }
-                }
-                float cap = lowestNeightbour - currentHeight;
-                if ( cap > 0 ) {
-                    capacity[ y*size +x ] = cap;
-                }
-
-                if ( currentWaterLevel == 0 )
-                {
+                final float currentHeight = trueHeight( x, y );
+                final float currentWater = water(x,y);
+                if ( currentWater == 0 ) {
                     continue;
                 }
-
-                if ( gradCount > 0 ) {
-                    System.out.println("Cell "+x+","+y+" has "+gradCount+" lower neighbours");
-                    // distribute water from current grid location
-                    // according to gradients
-                    final float fraction = currentWaterLevel / gradCount;
-                    for ( int ix = -1 ; ix <= 1 ; ix++)
-                    {
-                        for ( int iy = -1 ; iy <= 1 ; iy++)
-                        {
-                            if ( ix !=0 || iy !=0 )
-                            {
-                                int grad = gradients[ (1+iy) * 3 + 1 + ix];
-                                if ( grad >= 0 )
-                                {
-                                    final int idx = (y+iy)*size + (x+ix);
-                                    System.out.println("Adding to ("+(x+ix)+","+(y+iy)+": "+fraction);
-                                    newWaterLevel[idx] += fraction;
-                                }
-                            }
-                        }
-                    }
-                    newWaterLevel[y*size+x] = 0;
-                } else {
-                    newWaterLevel[y*size+x] += currentWaterLevel;
-                }
-            }
-        }
-
-        float sum2 = getWaterSum(newWaterLevel);
-
-        boolean doSpill = false;
-        if ( doSpill )
-        {
-            // spill
-            for (int x = 0; x < size; x++)
-            {
-                for (int y = 0; y < size; y++)
+                final List<Point> points = new ArrayList<>();
+                float heightSum = 0;
+                for (int gradx = -1; gradx <= 1; gradx++)
                 {
-                    float waterLevel = newWaterLevel[y * size + x];
-                    float capacity = this.capacity[y * size + x];
-                    if ( waterLevel > capacity )
-                    {
-                        // distribute remainder to lowest neighbour
-                        float toDistribute = waterLevel - capacity;
-
-                        // find lowest neightbour
-                        int lowestX = -1;
-                        int lowestY = -1;
-                        int lowestHeight = 123456;
-                        for (int gradx = -1; gradx <= 1; gradx++)
-                        {
-                            for (int grady = -1; grady <= 1; grady++)
-                            {
-                                if ( gradx != 0 || grady != 0 )
-                                {
-                                    final int rx = x + gradx;
-                                    final int ry = y + grady;
-                                    if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
-                                    {
-                                        int h2 = height( rx, ry );
-
-                                        if ( h2 < lowestHeight )
-                                        {
-                                            lowestHeight = h2;
-                                            lowestX = rx;
-                                            lowestY = ry;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // we've moved the excess water
-                        newWaterLevel[y * size + x] = capacity;
-                        // move excess water to lowest neighbour
-                        float newValue = newWaterLevel[lowestY * size + lowestX] + toDistribute;
-                        newWaterLevel[lowestY * size + lowestX] = newValue;
-
-                        if ( newValue > capacity( lowestX, lowestY ) )
-                        {
-                            // water level in neighbour cell exceeds it's capacity,
-                            // raise the capacity of the current cell to
-                            // the same amount as the lowest neighbour
-                            float excess = newValue - capacity( lowestX, lowestY );
-                            float toMove = Math.min( height( lowestX, lowestY ) - height( x, y ), excess );
-                            this.capacity[y * size + x] = capacity( lowestX, lowestY );
-                            newWaterLevel[y * size + x] += toMove;
-                            newWaterLevel[lowestY * size + lowestX] -= toMove;
-                        }
-                    }
-                }
-            }
-        }
-
-        System.arraycopy( newWaterLevel, 0 , water, 0 , size*size );
-
-        float sum3 = getWaterSum();
-        System.out.println("initial: "+sum1+" -> before spill: "+sum2+" -> after spill: "+sum3);
-    }
-
-    private void calcCapacity()
-    {
-        for ( int x = 0 ; x < size ; x++ )
-        {
-            for ( int y =0 ; y < size ; y++ )
-            {
-                final int currentHeight = height(x,y);
-                int lowestNeightbour = 1234567;
-                float capacity = 0;
-                for (int gradx = -1 ; gradx <= 1; gradx++)
-                {
-                    for (int grady = -1 ; grady <= 1; grady++)
+                    for (int grady = -1; grady <= 1; grady++)
                     {
                         if ( gradx != 0 || grady != 0 )
                         {
@@ -226,34 +111,44 @@ public class Data
                             final int ry = y + grady;
                             if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
                             {
-                                int h2 = height( rx, ry );
-                                lowestNeightbour = Math.min( lowestNeightbour , h2 );
-                                if ( lowestNeightbour >= currentHeight )
+                                float otherHeight = trueHeight( rx, ry );
+                                if ( otherHeight < currentHeight )
                                 {
-                                    capacity = lowestNeightbour - currentHeight;
-                                } else {
-                                    capacity = 0;
+                                    // ok, downstream
+                                    heightSum += otherHeight;
+                                    points.add( new Point( rx, ry ) );
                                 }
                             }
                         }
                     }
                 }
-                this.capacity[y*size+x] = capacity;
+
+                if ( points.size() > 0 )
+                {
+                    final float avgHeight = heightSum / points.size();
+                    final float h = currentHeight - avgHeight;
+                    final float excessWater = Math.min( currentWater, h );
+
+                    if ( excessWater > 0 )
+                    {
+                        final float fraction = excessWater / (points.size()+1);
+                        incWater( x, y, -fraction*points.size());
+                        if ( water(x,y) < 0.0000001f) {
+                            setWater(x,y,0);
+                        }
+                        points.forEach( p -> incWater( p.x, p.y, fraction ) );
+                    }
+                }
             }
         }
     }
 
     public void clearWater() {
         Arrays.fill(water,(byte)0);
-        Arrays.fill(sediment,(byte)0);
     }
 
     public float water(int x,int y) {
         return this.water[y*size+x];
-    }
-
-    public float capacity(int x,int y) {
-        return this.capacity[y*size+x];
     }
 
     public Data initHeights(long seed,float startScale,int range,float scaleReduction,boolean normalize)
@@ -366,7 +261,6 @@ public class Data
                 height[i] = (byte) newValue;
             }
         }
-        calcCapacity();
         return this;
     }
 
@@ -409,6 +303,14 @@ public class Data
         this.water[ y*size + x ] = value;
     }
 
+    public void incHeight(int x,int y,int increment) {
+        setHeight(x,y,height( x,y ) + increment );
+    }
+
+    public void incWater(int x,int y,float increment) {
+        setWater(x,y,water( x,y ) + increment );
+    }
+
     public void setHeight(int x,int y,int value)
     {
         int rx = x;
@@ -420,5 +322,77 @@ public class Data
             ry += size;
         }
         this.height[ (ry%size)*size + (rx%size) ] = (byte) (value > 255 ? 255 : value < 0 ? 0 : value );
+    }
+
+    private static void writeArray(byte[] array,OutputStream out) throws IOException
+    {
+        writeInt(array.length,out);
+        for ( byte value : array ) {
+            out.write( value);
+        }
+    }
+
+    private static void writeArray(float[] array,OutputStream out) throws IOException
+    {
+        writeInt(array.length,out);
+        for ( float value : array ) {
+            writeFloat(value,out);
+        }
+    }
+
+    private static byte[] readByteArray(InputStream in) throws IOException
+    {
+        final int len = readInt(in);
+        final byte[] result = new byte[ len ];
+        for ( int i = 0 ; i < len ; i++ ) {
+            final int tmp = in.read();
+            if ( tmp == -1 ) {
+                throw new EOFException( "Premature end of input" );
+            }
+            result[i] = (byte) tmp;
+        }
+        return result;
+    }
+
+    private static float[] readFloatArray(InputStream in) throws IOException
+    {
+        final int len = readInt(in);
+        final float[] result = new float[ len ];
+        for ( int i = 0 ; i < len ; i++ ) {
+            result[i] = readFloat(in);
+        }
+        return result;
+    }
+
+    private static void writeFloat(float f,OutputStream out) throws IOException {
+        writeInt(Float.floatToIntBits( f ), out );
+    }
+
+    private static float readFloat(InputStream in) throws IOException
+    {
+        return Float.intBitsToFloat( readInt(in) );
+    }
+
+    private static void writeInt(int v, OutputStream out) throws IOException {
+        out.write( (v >> 24) & 0xff );
+        out.write( (v >> 16) & 0xff );
+        out.write( (v >>  8) & 0xff );
+        out.write( (v      ) & 0xff );
+    }
+
+    private static int readInt(InputStream in) throws IOException {
+
+        int value = 0;
+        for ( int i = 0 ; i < 4 ; i++)
+        {
+            value <<= 8;
+            final int tmp = in.read();
+            if ( tmp == -1 )
+            {
+                throw new EOFException( "Premature end of file" );
+            }
+            value |= (tmp & 0xff);
+        }
+        return value;
     }
 }
