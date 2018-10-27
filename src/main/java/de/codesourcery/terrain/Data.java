@@ -169,9 +169,9 @@ public class Data
              * Imagine drawing lines from the four points to the midpoint,
              * for every square in the array: you would create a diamond pattern (hence the name!).
              */
-            for (int y = 0; y+stepSize <= size ; y += stepSize)
+            for (int y = 0; y <  size ; y += stepSize)
             {
-                for (int x = 0; x+stepSize <= size ; x += stepSize)
+                for (int x = 0; x < size ; x += stepSize)
                 {
                     final int topLeft = height( x, y );
                     final int topRight = height( x + sm1, y );
@@ -194,10 +194,15 @@ public class Data
              * Again, imagine drawing the lines from the corners to the midpoint:
              * you’d create a square pattern.
              */
-            for (int y = 0; y+stepSize <= size ; y += stepSize)
+            for (int y = 0; y < size ; y += stepSize)
             {
-                for (int x = 0; x+stepSize <= size ; x += stepSize)
+                for (int x = 0; x < size ; x += stepSize)
                 {
+                    final int topCenter = height( x+stepSize/2 , (y-stepSize/2) );
+                    final int bottomCenter = height( x+stepSize/2 , (y+stepSize+stepSize/2) );
+                    final int leftCenter = height( x-stepSize/2 , (y+stepSize/2) );
+                    final int rightCenter = height( x+stepSize+stepSize/2 , (y+stepSize/2) );
+
                     final int topLeft = height( x, y );
                     final int topRight = height( x + sm1, y );
                     final int bottomLeft = height( x, y + sm1 );
@@ -209,38 +214,22 @@ public class Data
 
                     int newValue;
                     // top-center
-                    if ( y > 0 ) {
-                        int value = height(cx,y-sm1);
-                        newValue = rnd.rndValue( scale ) + (value + topLeft + topRight + center) / 4;
-                        setHeight( cx, y, newValue );
-                    }
-                    else
-                    {
-                        newValue = rnd.rndValue( scale ) + (topLeft + topRight + center)/3;
-                        setHeight( cx, y, newValue );
-                    }
+                    newValue = rnd.rndValue( scale ) + (topLeft + topRight + topCenter + center)/4;
+                    setHeight( cx, y, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // bottom-center
-                    newValue = rnd.rndValue( scale ) + (bottomLeft + bottomRight + center) / 3;
+                    newValue = rnd.rndValue( scale ) + (bottomLeft + bottomRight + bottomCenter + center) / 4;
                     setHeight( cx,y+sm1, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // left-center
-                    if ( x > 0 ) {
-                        int value =  height( x - sm1 , cy );
-                        newValue = rnd.rndValue( scale ) + (value + topLeft + bottomLeft + center )/4;
-                        setHeight( x, cy, newValue );
-                    }
-                    else
-                    {
-                        newValue = rnd.rndValue( scale ) + (topLeft + bottomLeft + center)/3;
-                        setHeight( x, cy, newValue );
-                    }
+                    newValue = rnd.rndValue( scale ) + (topLeft + bottomLeft + leftCenter + center)/4;
+                    setHeight( x, cy, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // right-center
-                    newValue = rnd.rndValue(scale) + (topRight+bottomRight+center)/3;
+                    newValue = rnd.rndValue(scale) + (topRight+bottomRight+rightCenter + center)/4;
                     setHeight( x+sm1,cy,newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
                 }
@@ -264,7 +253,15 @@ public class Data
     public int height(int x,int y) {
         try
         {
-            return this.height[y * size + x] & 0xff;
+            int rx = x;
+            while ( rx < 0 ) {
+                rx += size;
+            }
+            int ry = y;
+            while ( ry < 0 ) {
+                ry += size;
+            }
+            return this.height[ (ry%size) * size + (rx%size)] & 0xff;
         }
         catch(ArrayIndexOutOfBoundsException e) {
             System.out.flush();
@@ -277,6 +274,14 @@ public class Data
 
     public void setHeight(int x,int y,int value)
     {
-        this.height[ y*size + x ] = (byte) (value > 255 ? 255 : value < 0 ? 0 : value );
+        int rx = x;
+        while ( rx < 0 ) {
+            rx += size;
+        }
+        int ry = y;
+        while ( ry < 0 ) {
+            ry += size;
+        }
+        this.height[ (ry%size)*size + (rx%size) ] = (byte) (value > 255 ? 255 : value < 0 ? 0 : value );
     }
 }

@@ -25,9 +25,9 @@ public class Main extends JFrame
     private static final int WATER_MINHEIGHT = 210;
 
     private static final float START_SCALE = 1f;
-    private static final float SCALE_REDUCE = 0.75f;
-    private static final int RND_RANGE = 20;
-    private static final int SIZE = 129;
+    private static final float SCALE_REDUCE = 0.7f;
+    private static final int RND_RANGE = 100;
+    private static final int SIZE = 513;
 
     private static final int[] WATER_GRADIENT = new int[256];
 
