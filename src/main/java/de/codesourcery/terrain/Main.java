@@ -36,7 +36,7 @@ public class Main extends JFrame
     private static final float SCALE_REDUCE = 0.5f;
     private static final int RND_RANGE = 100;
     private static final int INITAL_SIZE = 129;
-    private static final int FLOW_STEPS = 20;
+    private static final int FLOW_STEPS = 10;
 
     public enum Mode
     {
@@ -340,11 +340,20 @@ public class Main extends JFrame
             return imageGfx;
         }
 
-        @Override
-        protected void paintComponent(Graphics g)
-        {
-            super.paintComponent( g );
+        private long frames;
 
+        @Override
+        protected void paintComponent(Graphics g) {
+            long t1 = System.currentTimeMillis();
+            doPaint(g);
+            long t2 = System.currentTimeMillis();
+            if ( frames++ % 60 == 0 ) {
+                System.out.println("paint() took "+(t2-t1)+" ms");
+            }
+        }
+
+        private void doPaint(Graphics g)
+        {
             float minWater = Float.MAX_VALUE;
             float maxWater = Float.MIN_VALUE;
             final BufferedImage image = image( data.size, data.size );
@@ -459,11 +468,18 @@ public class Main extends JFrame
 
     private final MyPanel panel = new MyPanel();
 
+    private long tickCnt = 0;
     private final Timer timer = new Timer(16, ev ->
     {
+        long t1 = System.currentTimeMillis();
         for ( int i = 0 ; i < FLOW_STEPS ; i++)
         {
             data.flow();
+        }
+        long t2 = System.currentTimeMillis();
+        tickCnt++;
+        if ( tickCnt % 60 == 0 ) {
+            System.out.println("flow() time: "+(t2-t1)+" ms");
         }
         panel.repaint();
     });
