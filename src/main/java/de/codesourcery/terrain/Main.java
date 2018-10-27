@@ -26,17 +26,17 @@ public class Main extends JFrame
 {
     private static final File CONFIG_FILE = new File(".terraincfg");
 
-    private static final boolean COLORIZE = false;
+    private static final boolean COLORIZE = true;
     private static final boolean NORMALIZE = true;
 
-    private static final int WATER_MINHEIGHT = 200;
+    private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
     private static final float START_SCALE = 1f;
     private static final float SCALE_REDUCE = 0.5f;
-    private static final int RND_RANGE = 50;
-    private static final int INITAL_SIZE = 257;
-    private static final int FLOW_STEPS = 10;
+    private static final int RND_RANGE = 100;
+    private static final int INITAL_SIZE = 129;
+    private static final int FLOW_STEPS = 20;
 
     public enum Mode
     {
@@ -51,13 +51,22 @@ public class Main extends JFrame
 
     private final Point tmp = new Point();
 
-    private static final int[] WATER_GRADIENT = new int[128];
+    private static final int[] WATER_GRADIENT = new int[256];
 
     static
     {
-        for (int i = 0; i <128 ; i++)
+        int bucketCount = 4;
+        final int bucketLen = 256/bucketCount;
+        float step = 1f/bucketCount;
+        float b = 0;
+        int idx = 0;
+        for (int i = 0; i < bucketCount ; i++,b+=step)
         {
-            WATER_GRADIENT[i] = 0xff000000 | (255-i);
+            for ( int j =0 ; j < bucketLen ; j++)
+            {
+                final int bi = (int) (b * 255f);
+                WATER_GRADIENT[idx++] = 0x80000000 | (255 - bi);
+            }
         }
     }
 

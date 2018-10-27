@@ -9,6 +9,7 @@ import java.util.Random;
 
 public class Data
 {
+    public static final float EPSILON = 0.0001f;
     public final byte[] height;
     public final float[] water;
     public final int size;
@@ -79,19 +80,20 @@ public class Data
         return height(x,y)+water(x,y);
     }
 
+    private final PointList points = new PointList();
+
     public void flow() {
 
-        final PointList points = new PointList();
         for ( int x = 0 ; x < size ; x++ )
         {
             for (int y = 0; y < size; y++)
             {
-                final float currentHeight = trueHeight( x, y );
                 final float currentWater = water(x,y);
                 if ( currentWater == 0 ) {
                     continue;
                 }
                 points.clear();
+                final float currentHeight = trueHeight( x, y );
                 float heightSum = 0;
                 for (int gradx = -1; gradx <= 1; gradx++)
                 {
@@ -125,21 +127,12 @@ public class Data
                     {
                         final float fraction = excessWater / (points.size()+1);
                         float newValue = water(x,y) - fraction*points.size();
-                        if ( newValue < 0.0001f) {
-                            setWater(x,y,0);
-                        } else {
-                            setWater(x,y,newValue);
-                        }
+                        setWater(x,y, newValue < EPSILON ? 0 : newValue );
                         points.forEach( fraction, (px,py,data) ->
                         {
-                            final int idx = py*size+px;
-                            final float newW = water[idx]+data;
-                            if ( newW < 0.0001f ) {
-                                water[idx] = newW;
-                            } else {
-                                water[idx] = 0;
-                            }
-                        } );
+                            final float newW = water(px,py)+data;
+                            setWater(px,py,newW < EPSILON ? 0 : newW );
+                        });
                     }
                 }
             }
