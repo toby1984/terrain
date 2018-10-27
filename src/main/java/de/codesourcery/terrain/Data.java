@@ -1,13 +1,10 @@
 package de.codesourcery.terrain;
 
-import java.awt.Point;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 
 public class Data
@@ -82,12 +79,6 @@ public class Data
         return height(x,y)+water(x,y);
     }
 
-    public void pour(int nx,int ny,float amount)
-    {
-        incWater( nx,ny,amount );
-        flow();
-    }
-
     public void flow() {
 
         final PointList points = new PointList();
@@ -133,9 +124,11 @@ public class Data
                     if ( excessWater > 0 )
                     {
                         final float fraction = excessWater / (points.size()+1);
-                        incWater( x, y, -fraction*points.size());
-                        if ( water(x,y) < 0.0000001f) {
+                        float newValue = water(x,y) - fraction*points.size();
+                        if ( newValue < 0.001f) {
                             setWater(x,y,0);
+                        } else {
+                            setWater(x,y,newValue);
                         }
                         points.forEach( fraction, (px,py,data) -> incWater( px, py, data) );
                     }

@@ -4,6 +4,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -13,11 +14,9 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -33,9 +32,10 @@ public class Main extends JFrame
     private static final int WATER_MINHEIGHT = 210;
 
     private static final float START_SCALE = 1f;
-    private static final float SCALE_REDUCE = 0.7f;
-    private static final int RND_RANGE = 100;
+    private static final float SCALE_REDUCE = 0.5f;
+    private static final int RND_RANGE = 20;
     private static final int INITAL_SIZE = 257;
+    private static final int FLOW_STEPS = 10;
 
     public enum Mode
     {
@@ -226,10 +226,26 @@ public class Main extends JFrame
             addKeyListener( new KeyAdapter()
             {
                 @Override
+                public void keyReleased(KeyEvent e)
+                {
+                    if ( e.getKeyCode() == KeyEvent.VK_T) {
+                        if ( timer.isRunning() ) {
+                            System.out.println("Stopping timer");
+                            timer.stop();
+                        } else {
+                            System.out.println("Starting timer");
+                            timer.start();
+                        }
+                    }
+                }
+
+                @Override
                 public void keyTyped(KeyEvent e)
                 {
                     switch ( e.getKeyChar() )
                     {
+                        case 't': // handled by keyReleased() already
+                            return;
                         case 's':
                             JFileChooser choser = new JFileChooser(mostRecentFile);
                             if ( mostRecentFile != null ) {
@@ -273,17 +289,14 @@ public class Main extends JFrame
                         case 'm':
                             int idx = (mode.ordinal() + 1) % Mode.values().length;
                             mode = Mode.values()[idx];
-                            System.out.println( "New mode: " + mode );
                             break;
                         case 'c':
                             data.clear();
                             break;
                         case 'w':
-                            System.out.println( "Water initialized @ " + WATER_MINHEIGHT );
                             data.initWater( WATER_MINHEIGHT );
                             break;
                         case ' ':
-                            System.out.println( "STEP" );
                             data.flow();
                             break;
                         default:
@@ -416,6 +429,17 @@ public class Main extends JFrame
         }
     }
 
+    private final MyPanel panel = new MyPanel();
+
+    private final Timer timer = new Timer(16, ev ->
+    {
+        for ( int i = 0 ; i < FLOW_STEPS ; i++)
+        {
+            data.flow();
+        }
+        panel.repaint();
+    });
+
     public Main()
     {
         try
@@ -437,7 +461,6 @@ public class Main extends JFrame
         }
         setTitle( "Terrain" );
         setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
-        final MyPanel panel = new MyPanel();
         panel.setPreferredSize( new Dimension( 640, 480 ) );
         getContentPane().add( panel );
         pack();
