@@ -29,11 +29,12 @@ public class Main extends JFrame
     private static final boolean COLORIZE = false;
     private static final boolean NORMALIZE = true;
 
-    private static final int WATER_MINHEIGHT = 210;
+    private static final int WATER_MINHEIGHT = 200;
+    private static final int WATER_AMOUNT = 10;
 
     private static final float START_SCALE = 1f;
     private static final float SCALE_REDUCE = 0.5f;
-    private static final int RND_RANGE = 20;
+    private static final int RND_RANGE = 50;
     private static final int INITAL_SIZE = 257;
     private static final int FLOW_STEPS = 10;
 
@@ -50,14 +51,13 @@ public class Main extends JFrame
 
     private final Point tmp = new Point();
 
-    private static final int[] WATER_GRADIENT = new int[256];
+    private static final int[] WATER_GRADIENT = new int[128];
 
     static
     {
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i <128 ; i++)
         {
-//            WATER_GRADIENT[i] = i<<24 | i;
-            WATER_GRADIENT[i] = 0xff0000ff;
+            WATER_GRADIENT[i] = 0xff000000 | (255-i);
         }
     }
 
@@ -166,7 +166,7 @@ public class Main extends JFrame
                     switch ( mode )
                     {
                         case WATER:
-                            data.setWater( p.x, p.y, value );
+                            data.incWater(p.x,p.y,value);
                             break;
                         case HEIGHT:
                             data.incHeight( p.x, p.y, value );
@@ -188,7 +188,7 @@ public class Main extends JFrame
                             switch ( mode )
                             {
                                 case WATER:
-                                    applyValue( p, 255 );
+                                    applyValue( p, 10 );
                                     break;
                                 case HEIGHT:
                                     applyValue( p, 10 );
@@ -206,7 +206,7 @@ public class Main extends JFrame
                                 switch ( mode )
                                 {
                                     case WATER:
-                                        applyValue( p, 0 );
+                                        applyValue( p, -10 );
                                         break;
                                     case HEIGHT:
                                         applyValue( p, -10 );
@@ -294,7 +294,7 @@ public class Main extends JFrame
                             data.clear();
                             break;
                         case 'w':
-                            data.initWater( WATER_MINHEIGHT );
+                            data.initWater( WATER_MINHEIGHT, WATER_AMOUNT);
                             break;
                         case ' ':
                             data.flow();
@@ -336,11 +336,19 @@ public class Main extends JFrame
         {
             super.paintComponent( g );
 
+            float minWater = Float.MAX_VALUE;
+            float maxWater = Float.MIN_VALUE;
             final BufferedImage image = image( data.size, data.size );
             for (int x = 0; x < data.size; x++)
             {
                 for (int y = 0; y < data.size; y++)
                 {
+                    final float w = data.water(x,y);
+                    if ( w > 0f)
+                    {
+                        minWater = Math.min( minWater, w );
+                        maxWater = Math.max( maxWater, w );
+                    }
                     final int v = data.height( x, y );
                     final int color;
                     if ( COLORIZE )
@@ -356,6 +364,16 @@ public class Main extends JFrame
             }
 
             // draw water
+            float offset;
+            float scale;
+            if ( minWater != Float.MIN_VALUE)
+            {
+                offset = minWater;
+                scale = (WATER_GRADIENT.length-1) / (maxWater - minWater);
+            } else {
+                offset = 0;
+                scale = 1;
+            }
             final int size = data.size;
             for (int x = 0; x < size; x++)
             {
@@ -364,8 +382,8 @@ public class Main extends JFrame
                     float w = data.water( x, y );
                     if ( w > 0 )
                     {
-//                        image.setRGB(x,y,WATER_GRADIENT[w]);
-                        image.setRGB( x, y, Color.BLUE.getRGB() );
+                        final int idx = (int) ((w-offset)*scale);
+                        image.setRGB(x,y,WATER_GRADIENT[idx]);
                     }
                 }
             }
@@ -409,6 +427,7 @@ public class Main extends JFrame
                 y += fontHeight;
                 g.drawString( "Water: " + data.water( squareX, squareY ), 10, y );
                 y += fontHeight;
+                g.drawString( "H+W: " + (data.height( squareX, squareY )+data.water(squareX,squareY)), 10, y );
             }
         }
     }

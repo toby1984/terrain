@@ -66,12 +66,12 @@ public class Data
         }
     }
 
-    public void initWater(int minHeight)
+    public void initWater(int minHeight,float amount)
     {
         for ( int i = 0 ; i < size*size; i++)
         {
             int h = height[i] & 0xff;
-            water[i] = h > minHeight ? 255 : 0;
+            water[i] = h > minHeight ? water[i]+amount: 0;
         }
     }
 
@@ -125,12 +125,21 @@ public class Data
                     {
                         final float fraction = excessWater / (points.size()+1);
                         float newValue = water(x,y) - fraction*points.size();
-                        if ( newValue < 0.001f) {
+                        if ( newValue < 0.0001f) {
                             setWater(x,y,0);
                         } else {
                             setWater(x,y,newValue);
                         }
-                        points.forEach( fraction, (px,py,data) -> incWater( px, py, data) );
+                        points.forEach( fraction, (px,py,data) ->
+                        {
+                            final int idx = py*size+px;
+                            final float newW = water[idx]+data;
+                            if ( newW < 0.0001f ) {
+                                water[idx] = newW;
+                            } else {
+                                water[idx] = 0;
+                            }
+                        } );
                     }
                 }
             }
