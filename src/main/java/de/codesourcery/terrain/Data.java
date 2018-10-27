@@ -90,6 +90,7 @@ public class Data
 
     public void flow() {
 
+        final PointList points = new PointList();
         for ( int x = 0 ; x < size ; x++ )
         {
             for (int y = 0; y < size; y++)
@@ -99,7 +100,7 @@ public class Data
                 if ( currentWater == 0 ) {
                     continue;
                 }
-                final List<Point> points = new ArrayList<>();
+                points.clear();
                 float heightSum = 0;
                 for (int gradx = -1; gradx <= 1; gradx++)
                 {
@@ -116,7 +117,7 @@ public class Data
                                 {
                                     // ok, downstream
                                     heightSum += otherHeight;
-                                    points.add( new Point( rx, ry ) );
+                                    points.add( rx, ry );
                                 }
                             }
                         }
@@ -136,7 +137,7 @@ public class Data
                         if ( water(x,y) < 0.0000001f) {
                             setWater(x,y,0);
                         }
-                        points.forEach( p -> incWater( p.x, p.y, fraction ) );
+                        points.forEach( fraction, (px,py,data) -> incWater( px, py, data) );
                     }
                 }
             }

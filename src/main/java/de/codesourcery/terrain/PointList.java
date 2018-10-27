@@ -8,11 +8,12 @@ public class PointList
     private int ptr = 0;
 
     public interface IVisitor {
-        public void visit(int x,int y);
+        public void visit(int x,int y,float data);
     }
 
     public void add(int px,int py) {
-        if ( ptr == x.length ) {
+        if ( ptr == x.length )
+        {
             final int newLength = x.length + (x.length/2) +1;
             int[] tmp = new int[newLength];
             System.arraycopy( x,0,tmp,0,x.length );
@@ -24,6 +25,7 @@ public class PointList
         }
         x[ptr] = px;
         y[ptr] = py;
+        ptr++;
     }
 
     public void clear() {
@@ -34,11 +36,11 @@ public class PointList
         return ptr;
     }
 
-    public void forEach(IVisitor v) {
+    public void forEach(float data,IVisitor v) {
 
         final int len = ptr;
         for ( int i = 0 ; i < len ; i++ ) {
-            v.visit(x[i],y[i]);
+            v.visit(x[i],y[i],data);
         }
     }
 }
