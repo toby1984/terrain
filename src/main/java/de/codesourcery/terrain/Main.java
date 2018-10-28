@@ -83,6 +83,7 @@ public class Main extends JFrame
     {
         private BufferedImage image;
         private Graphics2D imageGfx;
+        private Renderer renderer = new Renderer();
 
         private Point highlight = null;
 
@@ -353,6 +354,17 @@ public class Main extends JFrame
         }
 
         private void doPaint(Graphics g)
+        {
+            super.paintComponent(g);
+            renderer.setData( data );
+            renderer.camera.viewportHeight = getHeight();
+            renderer.camera.viewportWidth = getWidth();
+            renderer.camera.update();
+
+            renderer.render((Graphics2D) g);
+        }
+
+        private void doPaint2(Graphics g)
         {
             float minWater = Float.MAX_VALUE;
             float maxWater = Float.MIN_VALUE;
