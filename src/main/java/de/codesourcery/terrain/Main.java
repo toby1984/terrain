@@ -1,6 +1,7 @@
 package de.codesourcery.terrain;
 
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.math.Vector3;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -42,7 +43,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 100;
 
-    private static final int INITAL_SIZE = 17;
+    private static final int INITAL_SIZE = 3;
 
     private static final int FLOW_STEPS = 10;
 
@@ -112,12 +113,36 @@ public class Main extends JFrame
                 private final Point dragStartPos = new Point();
                 private float dragStartValue;
 
+                private int dragStartX,dragStartY;
+
+                private final Vector3 tmp = new Vector3();
+
+                private void handleDrag(MouseEvent e)
+                {
+                    final float degreesPerPixel = 0.05f;
+                    int dx = e.getX() - dragStartX;
+                    int dy = e.getY() - dragStartY;
+                    float deltaX = -dx * degreesPerPixel;
+                    float deltaY = -dy * degreesPerPixel;
+                    renderer.camera.direction.rotate(renderer.camera.up, deltaX);
+                    tmp.set(renderer.camera.direction).crs(renderer.camera.up).nor();
+                    renderer.camera.direction.rotate(tmp, deltaY);
+                    renderer.camera.update();
+                }
+
                 @Override
                 public void mouseDragged(MouseEvent e)
                 {
-                    if ( ! render2D ) {
-                        renderer.cameraController.touchDragged( e.getX(), e.getY(), 1 );
-                        repaint();
+                    if ( ! render2D )
+                    {
+                        if ( isDragging ) {
+                            handleDrag(e);
+                            repaint();
+                        } else {
+                            isDragging = true;
+                            dragStartX = e.getX();
+                            dragStartY = e.getY();
+                        }
                         return;
                     }
 
@@ -280,6 +305,14 @@ public class Main extends JFrame
                     } else {
                         renderer.cameraController.keyDown( key );
                     }
+                    System.out.println("CAMERA POSITION: new Vector3("
+                            +renderer.camera.position.x+"f,"
+                            +renderer.camera.position.y+"f,"
+                            +renderer.camera.position.z+"f)");
+                    System.out.println("CAMERA DIRECTION: new Vector3("
+                            +renderer.camera.direction.x+"f,"
+                            +renderer.camera.direction.y+"f,"
+                            +renderer.camera.direction.z+"f)");
                     repaint();
                 }
 
@@ -315,15 +348,25 @@ public class Main extends JFrame
                 @Override
                 public void keyTyped(KeyEvent e)
                 {
+                    final char keyChar = e.getKeyChar();
+                    switch( keyChar ) {
+                        case 'v':
+                            render2D = !render2D;
+                            repaint();
+                            return;
+                        case 'c':
+                            data.clear();
+                            repaint();
+                            return;
+                    }
+
                     if ( ! render2D )
                     {
                         return;
                     }
-                    switch ( e.getKeyChar() )
+
+                    switch ( keyChar )
                     {
-                        case 'v':
-                            render2D = !render2D;
-                            break;
                         case '+':
                             renderer.zoomIn();
                             break;
@@ -375,9 +418,6 @@ public class Main extends JFrame
                         case 'm':
                             int idx = (mode.ordinal() + 1) % Mode.values().length;
                             mode = Mode.values()[idx];
-                            break;
-                        case 'c':
-                            data.clear();
                             break;
                         case 'w':
                             data.initWater( WATER_MINHEIGHT, WATER_AMOUNT);
@@ -441,11 +481,12 @@ public class Main extends JFrame
         private void render3D(Graphics g)
         {
             super.paintComponent(g);
+
             renderer.setData( data );
             renderer.camera.viewportHeight = getHeight();
             renderer.camera.viewportWidth = getWidth();
             renderer.camera.near = 0.1f;
-            renderer.camera.far = 1000f;
+            renderer.camera.far = 200f;
             renderer.camera.update();
 
             renderer.render((Graphics2D) g);

@@ -2,7 +2,11 @@ package de.codesourcery.terrain;
 
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector;
+import com.badlogic.gdx.math.Vector3;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 
 public class Renderer
@@ -26,8 +30,12 @@ public class Renderer
         System.loadLibrary( "gdx64" );
     }
 
-    public Renderer() {
+    public Renderer()
+    {
         cameraController.setVelocity( 50 );
+        camera.position.set( new Vector3(0.0f,-12.5f,-25.05f) );
+        camera.direction.set( new Vector3(0.0f,0.0f,-1.0f) );
+        camera.update(true);
     }
 
     public void setData(Data d) {
@@ -40,33 +48,85 @@ public class Renderer
         if ( data == null) {
             return;
         }
+        mesh1.setToCube( 5f );
 
         mesh1.copyTo( mesh2 );
 //        System.out.println("rendering(): "+ mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
-        project(mesh2);
 
-        final int[] indices = mesh2.indices;
         final float[] vertices = mesh2.vertices;
-        final int idxCnt = mesh2.indexCount();
-        for ( int idxPtr = 0 ; idxPtr < idxCnt ; idxPtr+=3)
-        {
-            int p0 = indices[idxPtr];
-            int p1 = indices[idxPtr+1];
-            int p2 = indices[idxPtr+2];
 
-//            System.out.println("triangle #"+idxPtr+": "+p0+" -> "+p1+" -> "+p2);
+        // transform mesh into view space
+        mesh2.multiply( camera.view );
 
-            final int offsetP0 = p0 * TriangleList.COMPONENT_CNT;
-            final int offsetP1 = p1 * TriangleList.COMPONENT_CNT;
-            final int offsetP2 = p2 * TriangleList.COMPONENT_CNT;
+        mesh2.visitDepthSortedTriangles(
+                camera.position.x,
+                camera.position.y,
+                camera.position.z,
+                new TriangleList.IVisitor()
+                {
+                    private final int x[] = new int[3];
+                    private final int y[] = new int[3];
 
-            drawLine(gfx,vertices,offsetP0,offsetP1);
-            drawLine(gfx,vertices,offsetP1,offsetP2);
-            drawLine(gfx,vertices,offsetP2,offsetP0);
-        }
+                    private final Matrix4 normRot = new Matrix4();
+                    private final Vector3 norm = new Vector3();
+
+                    @Override
+                    public void beforeFirstVisit()
+                    {
+                        mesh1.copyTo(mesh2);
+                        project(mesh2);
+                        // Normaltransformed = Inverse ( transpose ( mat3 ) ) * Normal;
+                        normRot.set( camera.view ).tra().inv();
+                    }
+
+                    @Override
+                    public void visit(int p0Idx,int p1Idx,int p2Idx)
+                    {
+                        norm.set( mesh1.vertices[p0Idx],
+                                mesh1.vertices[p0Idx+1],
+                                mesh1.vertices[p0Idx+2]);
+
+                        // normal is in view space, transform point
+                        norm.mul( camera.view );
+                        norm.add(
+                                mesh2.normals[ p0Idx ],
+                                mesh2.normals[ p0Idx+1],
+                                mesh2.normals[ p0Idx+2]);
+
+                        norm.mul( camera.projection );
+                        projectNoMul( norm );
+
+                        x[0] = (int) vertices[ p0Idx ];
+                        x[1] = (int) vertices[ p1Idx ];
+                        x[2] = (int) vertices[ p2Idx ];
+
+                        y[0] = (int) ( camera.viewportHeight - vertices[ p0Idx+1 ]);
+                        y[1] = (int) ( camera.viewportHeight - vertices[ p1Idx+1 ]);
+                        y[2] = (int) ( camera.viewportHeight - vertices[ p2Idx+1 ]);
+
+                        gfx.setColor(Color.GREEN);
+                        gfx.drawLine(x[0],y[0],(int) norm.x, (int) norm.y);
+
+//                        gfx.fillPolygon( x, y,3 );
+
+                        gfx.setColor(Color.BLACK);
+                        drawLine(gfx,vertices, p0Idx, p1Idx );
+                        drawLine(gfx,vertices, p1Idx, p2Idx );
+                        drawLine(gfx,vertices, p2Idx, p0Idx );
+                    }
+                });
     }
 
-    private void drawLine(Graphics2D g,float[] vertices, int offsetP0,int offsetP1) {
+    private Vector3 projectNoMul(Vector3 worldCoords)
+    {
+        worldCoords.x = camera.viewportWidth * (worldCoords.x + 1) / 2 + viewportX;
+        worldCoords.y = camera.viewportHeight * (worldCoords.y + 1) / 2 + viewportY;
+        worldCoords.z = (worldCoords.z + 1) / 2;
+        return worldCoords;
+    }
+
+    private void drawLine(Graphics2D g,float[] vertices, int offsetP0,int offsetP1)
+    {
         final int x0 = (int) vertices[offsetP0];
         final int y0 = (int) (camera.viewportHeight - vertices[offsetP0 + 1]);
         final int x1 = (int) vertices[offsetP1];
