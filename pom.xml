@@ -19,6 +19,11 @@
   </properties>
 
   <dependencies>
+<dependency>
+    <groupId>com.badlogicgames.gdx</groupId>
+    <artifactId>gdx</artifactId>
+    <version>1.9.8</version>
+</dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
