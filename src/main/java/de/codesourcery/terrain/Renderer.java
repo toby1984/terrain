@@ -49,13 +49,12 @@ public class Renderer
             return;
         }
         mesh1.setToCube( 5f );
-
-        mesh1.copyTo( mesh2 );
+        mesh1.copyTo( mesh2,true);
 //        System.out.println("rendering(): "+ mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
 
         final float[] vertices = mesh2.vertices;
 
-        // transform mesh into view space
+        // transform mesh into view space for depth sorting
         mesh2.multiply( camera.view );
 
         mesh2.visitDepthSortedTriangles(
@@ -67,32 +66,34 @@ public class Renderer
                     private final int x[] = new int[3];
                     private final int y[] = new int[3];
 
-                    private final Matrix4 normRot = new Matrix4();
                     private final Vector3 norm = new Vector3();
 
                     @Override
                     public void beforeFirstVisit()
                     {
-                        mesh1.copyTo(mesh2);
+                        // depth sorting is done but
+                        // we need coordinates in screen space
+                        // for rendering
+                        mesh1.copyTo(mesh2,false); // keep normals for later
                         project(mesh2);
-                        // Normaltransformed = Inverse ( transpose ( mat3 ) ) * Normal;
-                        normRot.set( camera.view ).tra().inv();
                     }
 
                     @Override
                     public void visit(int p0Idx,int p1Idx,int p2Idx)
                     {
                         norm.set( mesh1.vertices[p0Idx],
-                                mesh1.vertices[p0Idx+1],
-                                mesh1.vertices[p0Idx+2]);
+                                  mesh1.vertices[p0Idx+1],
+                                  mesh1.vertices[p0Idx+2]);
 
-                        // normal is in view space, transform point
+                        // transform point to view space
                         norm.mul( camera.view );
+                        // add normal
                         norm.add(
                                 mesh2.normals[ p0Idx ],
                                 mesh2.normals[ p0Idx+1],
                                 mesh2.normals[ p0Idx+2]);
 
+                        // project to view space
                         norm.mul( camera.projection );
                         projectNoMul( norm );
 
@@ -105,7 +106,7 @@ public class Renderer
                         y[2] = (int) ( camera.viewportHeight - vertices[ p2Idx+1 ]);
 
                         gfx.setColor(Color.GREEN);
-                        gfx.drawLine(x[0],y[0],(int) norm.x, (int) norm.y);
+                        gfx.drawLine(x[0],y[0],(int) norm.x, (int) (camera.viewportHeight -norm.y));
 
 //                        gfx.fillPolygon( x, y,3 );
 

@@ -110,7 +110,7 @@ public class TriangleList
         }
     }
 
-    public void copyTo(TriangleList destination)
+    public void copyTo(TriangleList destination,boolean copyNormals)
     {
         destination.clear();
         destination.assureIndices( indexCount() );
@@ -118,7 +118,10 @@ public class TriangleList
 
         System.arraycopy( vertices,0,destination.vertices,0,vertexPtr );
         System.arraycopy( indices,0,destination.indices,0,idxPtr );
-        System.arraycopy( normals,0,destination.normals,0,vertexCount()*3);
+        if ( copyNormals )
+        {
+            System.arraycopy( normals, 0, destination.normals, 0, vertexCount() * 3 );
+        }
         destination.vertexPtr = this.vertexPtr;
         destination.idxPtr = this.idxPtr;
     }
