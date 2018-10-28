@@ -1,5 +1,7 @@
 package de.codesourcery.terrain;
 
+import com.badlogic.gdx.Input;
+
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -26,22 +28,23 @@ public class Main extends JFrame
 {
     private static final File CONFIG_FILE = new File(".terraincfg");
 
-    private static final boolean COLORIZE = true;
+    private static final boolean COLORIZE = false;
     private static final boolean NORMALIZE = true;
 
     private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
     private static final float START_SCALE = 1f;
+
     private static final float SCALE_REDUCE = 0.5f;
+
     private static final int RND_RANGE = 100;
-    private static final int INITAL_SIZE = 129;
+
+    private static final int INITAL_SIZE = 17;
+
     private static final int FLOW_STEPS = 10;
 
-    public enum Mode
-    {
-        WATER, HEIGHT;
-    }
+    public enum Mode {WATER,HEIGHT}
 
     private File mostRecentFile;
     private Mode mode = Mode.WATER;
@@ -85,6 +88,8 @@ public class Main extends JFrame
         private Graphics2D imageGfx;
         private Renderer renderer = new Renderer();
 
+        private boolean render2D=true;
+
         private Point highlight = null;
 
         private final int[] gradient = new GradientBuilder()
@@ -108,6 +113,12 @@ public class Main extends JFrame
                 @Override
                 public void mouseDragged(MouseEvent e)
                 {
+                    if ( ! render2D ) {
+                        renderer.cameraController.touchDragged( e.getX(), e.getY(), 1 );
+                        repaint();
+                        return;
+                    }
+
                     final Point p = point(e);
                     if ( p != null )
                     {
@@ -235,25 +246,88 @@ public class Main extends JFrame
 
             addKeyListener( new KeyAdapter()
             {
+                private void keyPressOrRelease(KeyEvent e,boolean keyUp)
+                {
+                    final int key;
+                    switch ( e.getKeyChar() )
+                    {
+                        case 'w':
+                            key = Input.Keys.W;
+                            break;
+                        case 'a':
+                            key = Input.Keys.A;
+                            break;
+                        case 's':
+                            key = Input.Keys.S;
+                            break;
+                        case 'd':
+                            key = Input.Keys.D;
+                            break;
+                        case 'q':
+                            key = Input.Keys.Q;
+                            break;
+                        case 'e':
+                            key = Input.Keys.E;
+                            break;
+                        default:
+                            return;
+                    }
+                    if ( keyUp )
+                    {
+                        renderer.cameraController.keyUp( key );
+                    } else {
+                        renderer.cameraController.keyDown( key );
+                    }
+                    repaint();
+                }
+
+                @Override
+                public void keyPressed(KeyEvent e)
+                {
+                    if ( ! render2D )
+                    {
+                        keyPressOrRelease( e, false );
+                    }
+                }
+
                 @Override
                 public void keyReleased(KeyEvent e)
                 {
+
                     if ( e.getKeyCode() == KeyEvent.VK_T) {
-                        if ( timer.isRunning() ) {
+                        if ( waterSimulationRunning ) {
                             System.out.println("Stopping timer");
-                            timer.stop();
+                            waterSimulationRunning = false;
                         } else {
                             System.out.println("Starting timer");
-                            timer.start();
+                            waterSimulationRunning = true;
                         }
+                    }
+
+                    if ( ! render2D )
+                    {
+                        keyPressOrRelease( e, true );
                     }
                 }
 
                 @Override
                 public void keyTyped(KeyEvent e)
                 {
+                    if ( ! render2D )
+                    {
+                        return;
+                    }
                     switch ( e.getKeyChar() )
                     {
+                        case 'v':
+                            render2D = !render2D;
+                            break;
+                        case '+':
+                            renderer.zoomIn();
+                            break;
+                        case '-':
+                            renderer.zoomOut();
+                            break;
                         case 't': // handled by keyReleased() already
                             return;
                         case 's':
@@ -321,7 +395,6 @@ public class Main extends JFrame
 
         private BufferedImage image(int w, int h)
         {
-
             if ( image == null || image.getWidth() != w || image.getHeight() != h )
             {
                 if ( image != null )
@@ -344,27 +417,41 @@ public class Main extends JFrame
         private long frames;
 
         @Override
-        protected void paintComponent(Graphics g) {
-            long t1 = System.currentTimeMillis();
-            doPaint(g);
-            long t2 = System.currentTimeMillis();
+        protected void paintComponent(Graphics g)
+        {
+            if ( ! timer.isRunning() ) {
+                timer.start();
+            }
+            final long t1 = System.currentTimeMillis();
+            if ( render2D ) {
+                render2D( g );
+            }
+            else
+            {
+                render3D( g );
+            }
+            final long t2 = System.currentTimeMillis();
             if ( frames++ % 60 == 0 ) {
                 System.out.println("paint() took "+(t2-t1)+" ms");
             }
         }
 
-        private void doPaint(Graphics g)
+        private void render3D(Graphics g)
         {
             super.paintComponent(g);
             renderer.setData( data );
             renderer.camera.viewportHeight = getHeight();
             renderer.camera.viewportWidth = getWidth();
+            renderer.camera.position.x = 0;
+            renderer.camera.position.y = 100;
+            renderer.camera.near = 0.1f;
+            renderer.camera.far = 1000f;
             renderer.camera.update();
 
             renderer.render((Graphics2D) g);
         }
 
-        private void doPaint2(Graphics g)
+        private void render2D(Graphics g)
         {
             float minWater = Float.MAX_VALUE;
             float maxWater = Float.MIN_VALUE;
@@ -436,6 +523,19 @@ public class Main extends JFrame
             }
 
             // draw highlight
+            renderUI(g);
+        }
+
+        private void renderUI(Graphics g)
+        {
+            int y = 20;
+            final int fontHeight = 20;
+            if ( ! render2D ) {
+                g.drawString( "Camera: "+renderer.camera.position,10,y);
+                y += fontHeight;
+                g.drawString( "Look-At: "+renderer.camera.direction,10,y);
+                return;
+            }
             if ( highlight != null )
             {
                 g.setColor( Color.RED );
@@ -447,8 +547,6 @@ public class Main extends JFrame
                 final int y2 = (int) ((squareY + 1) * scaleY);
                 g.drawRect( x1, y1, x2 - x1, y2 - y1 );
                 g.setFont( getFont().deriveFont( 20f ) );
-                int y = 20;
-                final int fontHeight = 20;
                 g.drawString( "MODE: " + mode, 10, y );
                 y += fontHeight;
                 g.drawString( "Position: " + squareX + " / " + squareY, 10, y );
@@ -457,7 +555,7 @@ public class Main extends JFrame
                 y += fontHeight;
                 g.drawString( "Water: " + data.water( squareX, squareY ), 10, y );
                 y += fontHeight;
-                g.drawString( "H+W: " + (data.height( squareX, squareY )+data.water(squareX,squareY)), 10, y );
+                g.drawString( "H+W: " + (data.height( squareX, squareY ) + data.water( squareX, squareY )), 10, y );
             }
         }
     }
@@ -481,8 +579,26 @@ public class Main extends JFrame
     private final MyPanel panel = new MyPanel();
 
     private long tickCnt = 0;
+
+    private boolean waterSimulationRunning = false;
+
+    private long lastTickTime;
+
     private final Timer timer = new Timer(16, ev ->
     {
+        long time = System.currentTimeMillis();
+        if ( lastTickTime != 0 )
+        {
+            float elapsedSeconds = (lastTickTime-time)/1000f;
+            panel.renderer.cameraController.update(elapsedSeconds);
+        }
+        lastTickTime = time;
+
+        if ( !waterSimulationRunning ) {
+            panel.repaint();
+            return;
+        }
+
         long t1 = System.currentTimeMillis();
         for ( int i = 0 ; i < FLOW_STEPS ; i++)
         {

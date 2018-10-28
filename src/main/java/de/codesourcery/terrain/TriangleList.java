@@ -103,6 +103,8 @@ public class TriangleList
 
         System.arraycopy( vertices,0,destination.vertices,0,vertexPtr );
         System.arraycopy( indices,0,destination.indices,0,idxPtr );
+        destination.vertexPtr = this.vertexPtr;
+        destination.idxPtr = this.idxPtr;
     }
     
     public void multiply(Matrix4 m) {
@@ -128,6 +130,8 @@ public class TriangleList
         final int size = data.size;
         final float xStart = -(size * squareSize / 2);
         final float zStart = -(size * squareSize / 2);
+        System.out.println("Mesh xStart: "+xStart+", zStart: "+zStart);
+
         int heightMapPtr = 0;
         int vertexPtr = this.vertexPtr;
         final float[] vertexArray = this.vertices;
@@ -136,10 +140,10 @@ public class TriangleList
         int iz=0;
         for ( float z = zStart ; iz < size; z+=squareSize,iz++)
         {
-            int ix = 0;
-            for ( float x = xStart ; ix < size; x+=squareSize,ix++)
+            float x = xStart;
+            for ( int ix = 0; ix < size; x+=squareSize,ix++)
             {
-                final float height = heightMap[heightMapPtr++] & 0xff;
+                final float height = 0.1f*(heightMap[heightMapPtr++] & 0xff);
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = height;
                 vertexArray[vertexPtr+2] = z;
@@ -150,19 +154,18 @@ public class TriangleList
         
         // setup indices
         int p0Ptr = 0;
-        int p1Ptr = COMPONENT_CNT;
-        int p2Ptr = (size* COMPONENT_CNT) + COMPONENT_CNT;
-        int p3Ptr = size* COMPONENT_CNT;
+        int p1Ptr = 1;
+        int p2Ptr = size;
+        int p3Ptr = size+1;
 
         int idxPtr = this.idxPtr;
         final int[] idxArray = this.indices;
         for ( iz = 0 ; iz < size-1; iz++)
         {
-            int ix = 0;
-            for ( ix = 0; ix < size-1; ix++)
+            for (int ix = 0; ix < size-1; ix++)
             {
                 // triangle #0
-                idxArray[idxPtr ] = p0Ptr;
+                idxArray[idxPtr  ] = p0Ptr;
                 idxArray[idxPtr+1] = p1Ptr;
                 idxArray[idxPtr+2] = p2Ptr;
 
@@ -173,12 +176,15 @@ public class TriangleList
 
                 idxPtr += 6;
 
-                p0Ptr += COMPONENT_CNT;
-                p1Ptr += COMPONENT_CNT;
-                p2Ptr += COMPONENT_CNT;
-                p3Ptr += COMPONENT_CNT;
+                p0Ptr++;
+                p1Ptr++;
+                p2Ptr++;
+                p3Ptr++;
             }
         }
         this.idxPtr = idxPtr;
+        System.out.println("setupMesh(): "+vertexCount()+" vertices, "+indexCount()+
+                " indices, "+triangleCount()+" triangles");
+
     }
 }

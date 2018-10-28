@@ -1,6 +1,7 @@
 package de.codesourcery.terrain;
 
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 
 import java.awt.Graphics2D;
 
@@ -8,17 +9,22 @@ public class Renderer
 {
     private static final float TILE_SIZE = 5f;
 
-    public float viewportX=0;
-    public float viewportY=0;
-    public float viewportWidth=640;
-    public float viewportHeight=320;
+    public final float viewportX=0;
+    public final float viewportY=0;
 
     public final PerspectiveCamera camera = new PerspectiveCamera();
+
+    public final FirstPersonCameraController cameraController =
+            new FirstPersonCameraController( camera );
 
     private final TriangleList mesh1 = new TriangleList();
     private final TriangleList mesh2 = new TriangleList();
 
     private Data data;
+
+    static {
+        System.loadLibrary( "gdx64" );
+    }
 
     public Renderer() {
     }
@@ -35,6 +41,8 @@ public class Renderer
         }
 
         mesh1.copyTo( mesh2 );
+        System.out.println("rendering(): "+
+                mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
         project(mesh2);
 
         final int[] indices = mesh2.indices;
@@ -46,6 +54,8 @@ public class Renderer
             int p1 = indices[idxPtr+1];
             int p2 = indices[idxPtr+2];
 
+            System.out.println("triangle #"+idxPtr+": "+p0+" -> "+p1+" -> "+p2);
+
             final int offsetP0 = p0 * TriangleList.COMPONENT_CNT;
             final int offsetP1 = p1 * TriangleList.COMPONENT_CNT;
             final int offsetP2 = p2 * TriangleList.COMPONENT_CNT;
@@ -56,9 +66,13 @@ public class Renderer
         }
     }
 
-    private static void drawLine(Graphics2D g,float[] vertices, int offsetP0,int offsetP1) {
-        g.drawLine((int) vertices[offsetP0],(int) vertices[offsetP0+1],
-                   (int) vertices[offsetP1],(int) vertices[offsetP0+1]);
+    private void drawLine(Graphics2D g,float[] vertices, int offsetP0,int offsetP1) {
+        final int x0 = (int) vertices[offsetP0];
+        final int y0 = (int) (camera.viewportHeight - vertices[offsetP0 + 1]);
+        final int x1 = (int) vertices[offsetP1];
+        final int y1 = (int) (camera.viewportHeight - vertices[offsetP1 + 1]);
+        System.out.println("drawLine(): ("+x0+","+y0+") -> ("+x1+","+y1+")");
+        g.drawLine( x0, y0, x1, y1 );
     }
 
     private void project(TriangleList mesh)
@@ -70,9 +84,19 @@ public class Renderer
         int vertexPtr = 0;
         for ( int i = 0 ; i < vertexCnt ; i++,vertexPtr+= TriangleList.COMPONENT_CNT )
         {
-            vertices[vertexPtr  ] = viewportWidth * (vertices[vertexPtr  ] + 1) / 2 + viewportX;
-            vertices[vertexPtr+1] = viewportHeight * (vertices[vertexPtr+1] + 1) / 2 + viewportY;
+            vertices[vertexPtr  ] = camera.viewportWidth * (vertices[vertexPtr  ] + 1) / 2 + viewportX;
+            vertices[vertexPtr+1] = camera.viewportHeight * (vertices[vertexPtr+1] + 1) / 2 + viewportY;
             vertices[vertexPtr+2] = (vertices[vertexPtr+2] + 1) / 2;
         }
+    }
+
+    public void zoomOut() {
+        camera.position.z += 10;
+        camera.update();
+    }
+
+    public void zoomIn() {
+        camera.position.z -= 10;
+        camera.update();
     }
 }
