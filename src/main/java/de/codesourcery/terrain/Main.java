@@ -31,6 +31,8 @@ public class Main extends JFrame
     private static final boolean COLORIZE = false;
     private static final boolean NORMALIZE = true;
 
+    private static final float FPS = 4;
+
     private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
@@ -442,13 +444,12 @@ public class Main extends JFrame
             renderer.setData( data );
             renderer.camera.viewportHeight = getHeight();
             renderer.camera.viewportWidth = getWidth();
-            renderer.camera.position.x = 0;
-            renderer.camera.position.y = 100;
             renderer.camera.near = 0.1f;
             renderer.camera.far = 1000f;
             renderer.camera.update();
 
             renderer.render((Graphics2D) g);
+            renderUI(g);
         }
 
         private void render2D(Graphics g)
@@ -584,7 +585,7 @@ public class Main extends JFrame
 
     private long lastTickTime;
 
-    private final Timer timer = new Timer(16, ev ->
+    private final Timer timer = new Timer((int) (1000f/FPS), ev ->
     {
         long time = System.currentTimeMillis();
         if ( lastTickTime != 0 )

@@ -130,7 +130,7 @@ public class TriangleList
         final int size = data.size;
         final float xStart = -(size * squareSize / 2);
         final float zStart = -(size * squareSize / 2);
-        System.out.println("Mesh xStart: "+xStart+", zStart: "+zStart);
+//        System.out.println("Mesh xStart: "+xStart+", zStart: "+zStart);
 
         int heightMapPtr = 0;
         int vertexPtr = this.vertexPtr;
@@ -155,8 +155,8 @@ public class TriangleList
         // setup indices
         int p0Ptr = 0;
         int p1Ptr = 1;
-        int p2Ptr = size;
-        int p3Ptr = size+1;
+        int p2Ptr = size+1;
+        int p3Ptr = size;
 
         int idxPtr = this.idxPtr;
         final int[] idxArray = this.indices;
@@ -183,8 +183,6 @@ public class TriangleList
             }
         }
         this.idxPtr = idxPtr;
-        System.out.println("setupMesh(): "+vertexCount()+" vertices, "+indexCount()+
-                " indices, "+triangleCount()+" triangles");
-
+//        System.out.println("setupMesh(): "+vertexCount()+" vertices, "+indexCount()+ " indices, "+triangleCount()+" triangles");
     }
 }

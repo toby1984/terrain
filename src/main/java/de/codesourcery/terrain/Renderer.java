@@ -27,6 +27,7 @@ public class Renderer
     }
 
     public Renderer() {
+        cameraController.setVelocity( 50 );
     }
 
     public void setData(Data d) {
@@ -41,8 +42,7 @@ public class Renderer
         }
 
         mesh1.copyTo( mesh2 );
-        System.out.println("rendering(): "+
-                mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
+//        System.out.println("rendering(): "+ mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
         project(mesh2);
 
         final int[] indices = mesh2.indices;
@@ -54,7 +54,7 @@ public class Renderer
             int p1 = indices[idxPtr+1];
             int p2 = indices[idxPtr+2];
 
-            System.out.println("triangle #"+idxPtr+": "+p0+" -> "+p1+" -> "+p2);
+//            System.out.println("triangle #"+idxPtr+": "+p0+" -> "+p1+" -> "+p2);
 
             final int offsetP0 = p0 * TriangleList.COMPONENT_CNT;
             final int offsetP1 = p1 * TriangleList.COMPONENT_CNT;
@@ -71,8 +71,12 @@ public class Renderer
         final int y0 = (int) (camera.viewportHeight - vertices[offsetP0 + 1]);
         final int x1 = (int) vertices[offsetP1];
         final int y1 = (int) (camera.viewportHeight - vertices[offsetP1 + 1]);
-        System.out.println("drawLine(): ("+x0+","+y0+") -> ("+x1+","+y1+")");
-        g.drawLine( x0, y0, x1, y1 );
+//        System.out.println("drawLine(): ("+x0+","+y0+") -> ("+x1+","+y1+")");
+        if ( x0 >= 0 && x1 >= 0 && y0 >= 0 && y1 >= 0 &&
+                y0 <= camera.viewportHeight && y1 <= camera.viewportHeight &&
+                x0 <= camera.viewportWidth && x1 <= camera.viewportWidth ){
+            g.drawLine( x0, y0, x1, y1 );
+        }
     }
 
     private void project(TriangleList mesh)
