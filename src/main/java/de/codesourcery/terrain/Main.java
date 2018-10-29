@@ -43,7 +43,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 100;
 
-    private static final int INITAL_SIZE = 3;
+    private static final int INITAL_SIZE = 129;
 
     private static final int FLOW_STEPS = 10;
 
@@ -91,7 +91,7 @@ public class Main extends JFrame
         private Graphics2D imageGfx;
         private Renderer renderer = new Renderer();
 
-        private boolean render2D=true;
+        private boolean render2D=false;
 
         private Point highlight = null;
 

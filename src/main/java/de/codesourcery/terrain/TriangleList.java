@@ -7,7 +7,8 @@ public class TriangleList
 {
     public static final int COMPONENT_CNT = 3;
 
-    private static final boolean CULL_SURFACES = false;
+    private static final boolean DEPTH_SORT = true;
+    private static final boolean CULL_SURFACES = true;
 
     // vertices
     public float vertices[]=new float[0];
@@ -47,7 +48,6 @@ public class TriangleList
             final int pointCnt = vertexCount();
             final int newPointCnt = pointCnt + pointCnt/2 + 1;
             this.vertices = realloc(this.vertices,newPointCnt* COMPONENT_CNT );
-
             this.normals = realloc(this.normals, newPointCnt * 3 );
         }
         final int idx = vertexPtr;
@@ -155,7 +155,6 @@ public class TriangleList
         final int size = data.size;
         final float xStart = -((size/2) * squareSize);
         final float zStart = -((size/2) * squareSize);
-//        System.out.println("Mesh xStart: "+xStart+", zStart: "+zStart);
 
         int heightMapPtr = 0;
         int vertexPtr = this.vertexPtr;
@@ -169,7 +168,6 @@ public class TriangleList
             for ( int ix = 0; ix < size; x+=squareSize,ix++)
             {
                 final float height = (heightMap[heightMapPtr++] & 0xff);
-//                System.out.println("Adding Point #"+(vertexPtr/3)+" = ("+x+","+height+","+z+")");
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = 0.05f*height;
                 vertexArray[vertexPtr+2] = z;
@@ -257,10 +255,13 @@ public class TriangleList
 
         // left side
         addQuad(p0i,p4i,p7i,p3i);
+
         // right side
         addQuad(p5i,p1i,p2i,p6i);
+
         // top side
         addQuad(p0i,p1i,p5i,p4i);
+
         // bottom side
         addQuad(p7i,p6i,p2i,p3i);
 
@@ -294,9 +295,11 @@ public class TriangleList
             triangleNo[i] = i;
             final int triIdx = i*3;
 
-            final int offsetP0 = indices[triIdx];
-            final int offsetP1 = indices[triIdx + 1];
-            final int offsetP2 = indices[triIdx + 2];
+            final int offsetP0 = indices[triIdx] * TriangleList.COMPONENT_CNT;
+            final int offsetP1 = indices[triIdx + 1] * TriangleList.COMPONENT_CNT;
+            final int offsetP2 = indices[triIdx + 2] * TriangleList.COMPONENT_CNT;
+
+//            System.out.println("Triangle "+indices[triIdx]+" -> "+indices[triIdx + 1]+" -> "+indices[triIdx + 2]);
 
             final float p0X = vertices[offsetP0];
             final float p0Y = vertices[offsetP0 + 1];
@@ -320,27 +323,29 @@ public class TriangleList
             // calculate normal vector
             u.set(p1).sub(p0);
             v.set(p2).sub(p0);
-            n.set(u).crs( v ).nor(); // TODO: Normalization needed?
+            n.set(v).crs( u ).nor(); // TODO: Normalization needed?
 
             normals[offsetP0]   = n.x;
             normals[offsetP0+1] = n.y;
             normals[offsetP0+2] = n.z;
 
             // calculate view vector
-            viewVec.set(viewX,viewY,viewZ).sub(avg).nor();
+            viewVec.set(viewX,viewY,viewZ).sub(p0).nor();
 
             // calculate dot product between normal vector and view vector
             // to determine angle
             if ( ! CULL_SURFACES || n.dot( viewVec ) > 0 ) {
                 triangleNo[i] = i;
             } else {
-                System.out.println("Culling triangle #"+i);
                 triangleNo[i] = -1;
             }
         }
 
         // perform depth sort
-        quickSort(0,distances.length-1,distances,triangleNo);
+        if ( DEPTH_SORT )
+        {
+            quickSort( 0, distances.length - 1, distances, triangleNo );
+        }
 
         // start visiting triangles with the one farthest away
         visitor.beforeFirstVisit();

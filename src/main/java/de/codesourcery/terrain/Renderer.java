@@ -2,12 +2,10 @@ package de.codesourcery.terrain;
 
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
-import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.Vector;
 import com.badlogic.gdx.math.Vector3;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
+import java.awt.*;
+import java.util.Arrays;
 
 public class Renderer
 {
@@ -48,11 +46,8 @@ public class Renderer
         if ( data == null) {
             return;
         }
-        mesh1.setToCube( 5f );
+//        mesh1.setToCube( 5f );
         mesh1.copyTo( mesh2,true);
-//        System.out.println("rendering(): "+ mesh2.vertexCount()+" vertices, "+mesh2.indexCount()+" indices, "+mesh2.triangleCount()+" triangles");
-
-        final float[] vertices = mesh2.vertices;
 
         // transform mesh into view space for depth sorting
         mesh2.multiply( camera.view );
@@ -68,58 +63,69 @@ public class Renderer
 
                     private final Vector3 norm = new Vector3();
 
+                    private float[] vertices;
+                    private float[] normals;
+
                     @Override
                     public void beforeFirstVisit()
                     {
                         // depth sorting is done but
                         // we need coordinates in screen space
                         // for rendering
+                        normals = copy( mesh2.normals );
+                        vertices = copy( mesh2.vertices );
                         mesh1.copyTo(mesh2,false); // keep normals for later
                         project(mesh2);
+                    }
+
+                    private float[] copy(float[] input) {
+                        return Arrays.copyOf(input,input.length);
                     }
 
                     @Override
                     public void visit(int p0Idx,int p1Idx,int p2Idx)
                     {
-                        norm.set( mesh1.vertices[p0Idx],
-                                  mesh1.vertices[p0Idx+1],
-                                  mesh1.vertices[p0Idx+2]);
+                        // get normal in view space
+                        norm.set(
+                                normals[ p0Idx ],
+                                normals[ p0Idx+1],
+                                normals[ p0Idx+2]
+                        );
 
-                        // transform point to view space
-                        norm.mul( camera.view );
-                        // add normal
-                        norm.add(
-                                mesh2.normals[ p0Idx ],
-                                mesh2.normals[ p0Idx+1],
-                                mesh2.normals[ p0Idx+2]);
+                        // add base point
+                        norm.add( vertices[p0Idx],
+                                  vertices[p0Idx+1],
+                                  vertices[p0Idx+2]);
 
-                        // project to view space
-                        norm.mul( camera.projection );
+                        norm.scl(2);
+
+                        // perspective projection
                         projectNoMul( norm );
 
-                        x[0] = (int) vertices[ p0Idx ];
-                        x[1] = (int) vertices[ p1Idx ];
-                        x[2] = (int) vertices[ p2Idx ];
+                        x[0] = (int) mesh2.vertices[ p0Idx ];
+                        x[1] = (int) mesh2.vertices[ p1Idx ];
+                        x[2] = (int) mesh2.vertices[ p2Idx ];
 
-                        y[0] = (int) ( camera.viewportHeight - vertices[ p0Idx+1 ]);
-                        y[1] = (int) ( camera.viewportHeight - vertices[ p1Idx+1 ]);
-                        y[2] = (int) ( camera.viewportHeight - vertices[ p2Idx+1 ]);
-
-                        gfx.setColor(Color.GREEN);
-                        gfx.drawLine(x[0],y[0],(int) norm.x, (int) (camera.viewportHeight -norm.y));
+                        y[0] = (int) ( camera.viewportHeight - mesh2.vertices[ p0Idx+1 ]);
+                        y[1] = (int) ( camera.viewportHeight - mesh2.vertices[ p1Idx+1 ]);
+                        y[2] = (int) ( camera.viewportHeight - mesh2.vertices[ p2Idx+1 ]);
 
 //                        gfx.fillPolygon( x, y,3 );
 
                         gfx.setColor(Color.BLACK);
-                        drawLine(gfx,vertices, p0Idx, p1Idx );
-                        drawLine(gfx,vertices, p1Idx, p2Idx );
-                        drawLine(gfx,vertices, p2Idx, p0Idx );
+                        drawLine(gfx,mesh2.vertices, p0Idx, p1Idx );
+                        drawLine(gfx,mesh2.vertices, p1Idx, p2Idx );
+                        drawLine(gfx,mesh2.vertices, p2Idx, p0Idx );
+
+                        gfx.setColor(Color.GREEN);
+//                        gfx.drawLine( x[0], y[0], (int) norm.x, (int) (camera.viewportHeight - norm.y) );
                     }
                 });
     }
 
     private Vector3 projectNoMul(Vector3 worldCoords)
     {
+        worldCoords.prj( camera.projection );
         worldCoords.x = camera.viewportWidth * (worldCoords.x + 1) / 2 + viewportX;
         worldCoords.y = camera.viewportHeight * (worldCoords.y + 1) / 2 + viewportY;
         worldCoords.z = (worldCoords.z + 1) / 2;
@@ -132,7 +138,7 @@ public class Renderer
         final int y0 = (int) (camera.viewportHeight - vertices[offsetP0 + 1]);
         final int x1 = (int) vertices[offsetP1];
         final int y1 = (int) (camera.viewportHeight - vertices[offsetP1 + 1]);
-//        System.out.println("drawLine(): ("+x0+","+y0+") -> ("+x1+","+y1+")");
+
         if ( x0 >= 0 && x1 >= 0 && y0 >= 0 && y1 >= 0 &&
                 y0 <= camera.viewportHeight && y1 <= camera.viewportHeight &&
                 x0 <= camera.viewportWidth && x1 <= camera.viewportWidth ){
