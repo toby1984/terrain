@@ -1,11 +1,10 @@
 package de.codesourcery.terrain;
 
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 public class TriangleList
 {
-    public static final int COMPONENT_CNT = 6;
+    public static final int COMPONENT_CNT = 10;
 
     // vertices
     public float vertices[]=new float[0];
@@ -14,17 +13,28 @@ public class TriangleList
     public short[] indices =new short[0];
 
     private int vertexPtr = 0;
-    private int idxPtr = 0;
+    private int indexPtr = 0;
+
+    public void compact() {
+
+        if ( this.vertices.length > vertexPtr ) {
+            this.vertices = realloc( this.vertices, vertexPtr );
+        }
+        if ( this.indices.length > indexPtr ) {
+            this.indices = realloc( this.indices, indexPtr );
+        }
+    }
 
     private static float[] realloc(float[] array,int newLen) {
         final float[] tmp = new float[ newLen ];
-        System.arraycopy( array,0,tmp,0,array.length );
+        System.arraycopy( array,0,tmp,0,Math.min(array.length,newLen) );
         return tmp;
     }
 
-    private static short[] realloc(short[] array,int newLen) {
+    private static short[] realloc(short[] array,int newLen)
+    {
         final short[] tmp = new short[ newLen ];
-        System.arraycopy( array,0,tmp,0,array.length );
+        System.arraycopy( array,0,tmp,0,Math.min(array.length,newLen) );
         return tmp;
     }
 
@@ -52,22 +62,22 @@ public class TriangleList
 
     public void addTriangle(int p0,int p1,int p2)
     {
-        if ( idxPtr == indices.length )
+        if ( indexPtr == indices.length )
         {
             final int triCount = triangleCount();
             final int newTriCount = triCount + triCount/2 + 1;
             indices = realloc( indices, newTriCount*3 );
         }
-        final int idx = idxPtr;
+        final int idx = indexPtr;
         indices[idx ]=(short) p0;
         indices[idx+1]=(short) p1;
         indices[idx+2]=(short) p2;
-        idxPtr +=3;
+        indexPtr +=3;
     }
 
     public void clear() {
         vertexPtr = 0;
-        idxPtr = 0;
+        indexPtr = 0;
     }
 
     public int vertexCount() {
@@ -75,11 +85,11 @@ public class TriangleList
     }
 
     public int indexCount() {
-        return idxPtr;
+        return indexPtr;
     }
 
     public int triangleCount() {
-        return idxPtr/ 3;
+        return indexPtr / 3;
     }
 
     public void assureVertices(int count)
@@ -94,7 +104,7 @@ public class TriangleList
 
     public void assureIndices(int count)
     {
-        final int available = this.indices.length - idxPtr;
+        final int available = this.indices.length - indexPtr;
         int needed = count-available;
         if ( needed > 0 ) {
             this.indices = realloc( this.indices,
@@ -109,10 +119,10 @@ public class TriangleList
         destination.assureVertices( vertexCount() );
 
         System.arraycopy( vertices,0,destination.vertices,0,vertexPtr );
-        System.arraycopy( indices,0,destination.indices,0,idxPtr );
+        System.arraycopy( indices,0,destination.indices,0, indexPtr );
 
         destination.vertexPtr = this.vertexPtr;
-        destination.idxPtr = this.idxPtr;
+        destination.indexPtr = this.indexPtr;
     }
 
     public void setupMesh(Data data, final float squareSize)
@@ -145,16 +155,23 @@ public class TriangleList
                 final float height = (heightMap[heightMapPtr++] & 0xff);
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = 0.05f*height;
+//                vertexArray[vertexPtr+1] = (ix%2 == 0 || iz%2 == 0 ) ? 10:0;
                 vertexArray[vertexPtr+2] = z;
+                // normals
+                // color
+                vertexArray[vertexPtr+6] = 0;
+                vertexArray[vertexPtr+7] = 1;
+                vertexArray[vertexPtr+8] = 0;
+                vertexArray[vertexPtr+9] = 1; // a
+
                 final int pointNo = iz*size + ix;
-                System.out.println("Point #"+pointNo+" = ("+x+","+(0.5f*height)+","+z);
                 vertexPtr += COMPONENT_CNT;
             }
         }
         this.vertexPtr = vertexPtr;
 
         // setup indices
-        int idxPtr = this.idxPtr;
+        int idxPtr = this.indexPtr;
         final short[] idxArray = this.indices;
         for ( iz = 0 ; iz < size-1; iz++)
         {
@@ -165,14 +182,11 @@ public class TriangleList
             for (int ix = 0; ix < size-1; ix++)
             {
                 // triangle #0
-                System.out.println("Triangle "+p0Ptr+" -> "+p1Ptr+" -> "+p2Ptr);
                 idxArray[idxPtr  ] = (short) p0Ptr;
                 idxArray[idxPtr+1] = (short) p1Ptr;
                 idxArray[idxPtr+2] = (short) p2Ptr;
 
                 // triangle #1
-                System.out.println("Triangle "+p0Ptr+" -> "+p2Ptr+" -> "+p3Ptr);
-
                 idxArray[idxPtr+3] = (short) p0Ptr;
                 idxArray[idxPtr+4] = (short) p2Ptr;
                 idxArray[idxPtr+5] = (short) p3Ptr;
@@ -185,11 +199,10 @@ public class TriangleList
                 p3Ptr++;
             }
         }
-        this.idxPtr = idxPtr;
+        this.indexPtr = idxPtr;
 
         // calculate normals
         final Vector3 center=new Vector3();
-
         final Vector3 top=new Vector3();
         final Vector3 left=new Vector3();
         final Vector3 right=new Vector3();
@@ -249,6 +262,61 @@ public class TriangleList
                 vertexArray[vertexPtr+5] = n.z;
             }
         }
+        // average normals
+        vertexPtr = 0;
+        iz=0;
+        for ( float z = zStart ; iz < size; iz++)
+        {
+            for ( int ix = 0; ix < size; ix++, vertexPtr+=COMPONENT_CNT)
+            {
+                n.set( vertexArray[vertexPtr+3], vertexArray[vertexPtr+4], vertexArray[vertexPtr+5] );
+                if ( iz < size-1 )
+                {
+                    // not top row
+                    if ( ix < size-1 ) {
+                        // not right-most column, not top row: center,right,bottom
+                        int idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        idx = vertexPtr + ( COMPONENT_CNT*size);
+                        bottom.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+
+                        n.add( right ).add( bottom );
+
+                    }  else {
+                        // rightmost column: center,left,bottom (3)
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        idx = vertexPtr + ( COMPONENT_CNT*size);
+                        bottom.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+
+                        n.add(left).add(bottom);
+                    }
+                }
+                else
+                {
+                    // bottom row
+                    if ( ix < size-1 ) {
+                        // leftmost column: center,right,top
+                        int idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        idx = vertexPtr-size*COMPONENT_CNT;
+                        top.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        n.add(top).add( right );
+                    }  else {
+                        // rightmost column: center,left,top
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        idx = vertexPtr-size*COMPONENT_CNT;
+                        top.set( vertexArray[idx+3], vertexArray[idx+4],vertexArray[idx+5] );
+                        n.add( top ).add( left);
+                    }
+                }
+                n.scl(1/3f).nor();
+                vertexArray[vertexPtr+3] = n.x;
+                vertexArray[vertexPtr+4] = n.y;
+                vertexArray[vertexPtr+5] = n.z;
+            }
+        }
     }
 
     private final Vector3 u=new Vector3();
@@ -259,7 +327,7 @@ public class TriangleList
     {
         u.set(left ).sub(base);
         v.set(right).sub(base);
-        n.set(v).crs(u).nor();
+        n.set(u).crs(v).nor();
         System.out.println( v+ " x "+u+" => normal: "+n);
         return n;
     }

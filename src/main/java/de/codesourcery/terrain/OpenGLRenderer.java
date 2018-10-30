@@ -5,16 +5,21 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.VertexAttribute;
+import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
+import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
+import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.Vector3;
@@ -27,7 +32,7 @@ public class OpenGLRenderer implements ApplicationListener
 {
     public Environment environment;
     public final PerspectiveCamera camera;
-    public CameraInputController camController;
+    public FirstPersonCameraController camController;
     public ModelBatch modelBatch;
 
     private final Object MODEL_LOCK = new Object();
@@ -50,9 +55,9 @@ public class OpenGLRenderer implements ApplicationListener
     public OpenGLRenderer() {
         camera = new PerspectiveCamera();
         camera.fieldOfView = 67;
-        camera.position.set(10f, 10f, 10f);
+        camera.position.set(0f, 100f, 50f);
         camera.lookAt(0,0,0);
-        camera.near = 1f;
+        camera.near = 0.1f;
         camera.far = 300f;
     }
 
@@ -71,16 +76,18 @@ public class OpenGLRenderer implements ApplicationListener
     {
         environment = new Environment();
         environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f));
+        environment.set( IntAttribute.createCullFace( GL20.GL_FRONT ));
 
-        final Vector3 lightDir = new Vector3(0,0,10);
-//        environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, lightDir));
-        environment.add(new PointLight().set(0.8f, 0.8f, 0.8f, lightDir,100.0f));
+        final Vector3 lightDir1 = new Vector3(0,0,1);
+        final Vector3 lightDir2 = new Vector3(0,-1,0);
+        environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, lightDir1));
 
         camera.viewportWidth = Gdx.graphics.getWidth();
         camera.viewportHeight = Gdx.graphics.getHeight();
         camera.update();
 
-        camController = new CameraInputController( camera );
+        camController = new FirstPersonCameraController( camera );
+        camController.setVelocity( 40 );
         Gdx.input.setInputProcessor(camController);
 
         modelBatch = new ModelBatch();
@@ -124,7 +131,8 @@ public class OpenGLRenderer implements ApplicationListener
 
         list.clear();
 //        list.setToCube( 5f );
-        list.setupMesh( data, 10f );
+        list.setupMesh( data, 1f );
+        list.compact();
 
         if ( meshModel != null )
         {
@@ -134,8 +142,13 @@ public class OpenGLRenderer implements ApplicationListener
 
         final ModelBuilder modelBuilder = new ModelBuilder();
         modelBuilder.begin();
-        final Material material = new Material( ColorAttribute.createDiffuse( Color.GREEN ) );
-        final MeshPartBuilder part1 = modelBuilder.part( "part1", GL20.GL_TRIANGLES, Usage.Position | Usage.Normal, material );
+        final Material material = new Material();
+        VertexAttribute attr1 = VertexAttribute.Position();
+        VertexAttribute attr2 = VertexAttribute.Normal();
+        VertexAttribute attr3 = VertexAttribute.ColorUnpacked();
+        VertexAttributes attrs = new VertexAttributes( attr1,attr2,attr3 );
+        final MeshPartBuilder part1 = modelBuilder.part( "part1",
+                GL20.GL_TRIANGLES, attrs, material );
         part1.addMesh( list.vertices, list.indices );
 
         this.meshModel = modelBuilder.end();
