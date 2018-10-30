@@ -124,7 +124,7 @@ public class OpenGLRenderer implements ApplicationListener
 
         list.clear();
 //        list.setToCube( 5f );
-        list.setupMesh( data, 5f );
+        list.setupMesh( data, 10f );
 
         if ( meshModel != null )
         {

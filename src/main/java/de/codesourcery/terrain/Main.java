@@ -32,7 +32,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 100;
 
-    private static final int INITAL_SIZE = 129;
+    private static final int INITAL_SIZE = 3;
 
     private static final int FLOW_STEPS = 10;
 

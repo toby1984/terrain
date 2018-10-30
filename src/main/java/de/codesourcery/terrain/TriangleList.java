@@ -146,8 +146,10 @@ public class TriangleList
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = 0.05f*height;
                 vertexArray[vertexPtr+2] = z;
+                final int pointNo = iz*size + ix;
+                System.out.println("Point #"+pointNo+" = ("+x+","+(0.5f*height)+","+z);
+                vertexPtr += COMPONENT_CNT;
             }
-            vertexPtr += COMPONENT_CNT;
         }
         this.vertexPtr = vertexPtr;
 
@@ -156,18 +158,21 @@ public class TriangleList
         final short[] idxArray = this.indices;
         for ( iz = 0 ; iz < size-1; iz++)
         {
-            int p0Ptr = iz * size;
+            int p0Ptr = iz*size;
             int p1Ptr = p0Ptr + 1;
             int p2Ptr = p0Ptr + size + 1;
             int p3Ptr = p0Ptr + size;
             for (int ix = 0; ix < size-1; ix++)
             {
                 // triangle #0
+                System.out.println("Triangle "+p0Ptr+" -> "+p1Ptr+" -> "+p2Ptr);
                 idxArray[idxPtr  ] = (short) p0Ptr;
                 idxArray[idxPtr+1] = (short) p1Ptr;
                 idxArray[idxPtr+2] = (short) p2Ptr;
 
                 // triangle #1
+                System.out.println("Triangle "+p0Ptr+" -> "+p2Ptr+" -> "+p3Ptr);
+
                 idxArray[idxPtr+3] = (short) p0Ptr;
                 idxArray[idxPtr+4] = (short) p2Ptr;
                 idxArray[idxPtr+5] = (short) p3Ptr;
@@ -190,89 +195,59 @@ public class TriangleList
         final Vector3 right=new Vector3();
         final Vector3 bottom=new Vector3();
 
-        final Vector3 sum=new Vector3();
-
         vertexPtr = 0;
         iz=0;
-        for ( float z = zStart ; iz < size; z+=squareSize,iz++)
+        for ( float z = zStart ; iz < size; iz++)
         {
-            float x = xStart;
-            for ( int ix = 0; ix < size; x+=squareSize,ix++)
+            for ( int ix = 0; ix < size; ix++, vertexPtr+=COMPONENT_CNT)
             {
                 center.set( vertexArray[vertexPtr], vertexArray[vertexPtr+1], vertexArray[vertexPtr+2] );
-
-                n.set(0,0,0);
-                if ( iz == 0 )
+                if ( iz < size-1 )
                 {
-                    // top row
-                    if ( ix == 0 ) {
-                        // leftmost column: center,right,bottom (1)
+                    // not top row
+                    if ( ix < size-1 ) {
+                        // not right-most column, not top row: center,right,bottom
                         int idx = vertexPtr+COMPONENT_CNT;
                         right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
                         idx = vertexPtr + ( COMPONENT_CNT*size);
                         bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
 
-                        sum.set( calcNormal( center, bottom, right ) );
+                        n.set( calcNormal( center, right, bottom) );
 
-                    }  else if ( ix == size-1 ) {
+                    }  else {
                         // rightmost column: center,left,bottom (3)
                         int idx = vertexPtr-COMPONENT_CNT;
                         left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
                         idx = vertexPtr + ( COMPONENT_CNT*size);
                         bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
 
-                        sum.set( calcNormal( center, left, bottom) );
-
-                    } else {
-                        // in-between: center,left,right,bottom (2)
-                        int idx = vertexPtr-COMPONENT_CNT;
-                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                        idx = vertexPtr+COMPONENT_CNT;
-                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                        idx = vertexPtr + ( COMPONENT_CNT*size);
-                        bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-
-
+                        n.set( calcNormal( center, left, bottom) );
                     }
                 }
-                else if ( iz == size-1 )
+                else
                 {
                     // bottom row
-                    if ( ix == 0 ) {
+                    if ( ix < size-1 ) {
                         // leftmost column: center,right,top
                         int idx = vertexPtr+COMPONENT_CNT;
                         right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
                         idx = vertexPtr-size*COMPONENT_CNT;
                         top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                    }  else if ( ix == size-1 ) {
+                        n.set( calcNormal( center, top, right) );
+                    }  else {
                         // rightmost column: center,left,top
                         int idx = vertexPtr-COMPONENT_CNT;
                         left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
                         idx = vertexPtr-size*COMPONENT_CNT;
                         top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                    } else {
-                        // in-between: center,left,right,top
-                        int idx = vertexPtr-COMPONENT_CNT;
-                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                        idx = vertexPtr+COMPONENT_CNT;
-                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
-                        idx = vertexPtr-size*COMPONENT_CNT;
-                        top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+
+                        n.set( calcNormal( center, top, left) );
                     }
                 }
-                else
-                {
-                    // in-between row
-                    if ( ix == 0 ) {
-                        // leftmost column: current,right,top,bottom
-                    }  else if ( ix == size-1 ) {
-                        // rightmost column: current,left,top,bottom
-                    } else {
-                        // in-between: current,left,right,top,bottom
-                    }
-                }
+                vertexArray[vertexPtr+3] = n.x;
+                vertexArray[vertexPtr+4] = n.y;
+                vertexArray[vertexPtr+5] = n.z;
             }
-            vertexPtr += COMPONENT_CNT;
         }
     }
 
@@ -282,9 +257,10 @@ public class TriangleList
 
     private Vector3 calcNormal(Vector3 base,Vector3 left,Vector3 right)
     {
-        u.set( left ).sub(base);
-        v.set( right).sub(base);
-        n.set( u.crs( v ) ).nor();
+        u.set(left ).sub(base);
+        v.set(right).sub(base);
+        n.set(v).crs(u).nor();
+        System.out.println( v+ " x "+u+" => normal: "+n);
         return n;
     }
 
