@@ -10,7 +10,7 @@ import java.util.Random;
 public class Data
 {
     public static final float EPSILON = 0.0001f;
-    public final byte[] height;
+    public final float[] height;
     public final float[] water;
     public final int size;
 
@@ -21,7 +21,7 @@ public class Data
     public Data(int size)
     {
         this.size = size;
-        this.height = new byte[size*size];
+        this.height = new float[size*size];
         this.water = new float[size*size];
         this.dirty = true;
     }
@@ -63,15 +63,15 @@ public class Data
             this.range = range;
         }
 
-        private int rndValue()
+        private float rndValue()
         {
             return rndValue(1.0f);
         }
 
-        private int rndValue(float scale)
+        private float rndValue(float scale)
         {
             final float value = rnd.nextFloat()*range;
-            return (int) (scale*value);
+            return (scale*value);
         }
     }
 
@@ -79,7 +79,7 @@ public class Data
     {
         for ( int i = 0 ; i < size*size; i++)
         {
-            int h = height[i] & 0xff;
+            float h = height[i];
             water[i] = h > minHeight ? water[i]+amount: 0;
         }
         dirty = true;
@@ -163,11 +163,11 @@ public class Data
 
         final RandomGen rnd = new RandomGen(seed,range);
 
-        Arrays.fill(height,(byte) 0);
+        Arrays.fill(height,0f);
 
-        final byte[] tmp = new byte[4];
+        final float[] tmp = new float[4];
         for ( int i = 0 ; i < tmp.length ; i++ ) {
-            tmp[i] = (byte) rnd.rndValue();
+            tmp[i] = rnd.rndValue()*range;
         }
         fastSetHeight(0,0, tmp[0] );
         fastSetHeight(size-1,0, tmp[1] );
@@ -177,8 +177,8 @@ public class Data
         int stepSize = size;
         float scale = startScale;
 
-        int min = 255;
-        int max = 0;
+        float min = Float.MAX_VALUE;
+        float max = Float.MIN_VALUE;
 
         while (stepSize >=2)
         {
@@ -195,11 +195,11 @@ public class Data
             {
                 for (int x = 0; x < size ; x += stepSize)
                 {
-                    final int topLeft = height( x, y );
-                    final int topRight = height( x + sm1, y );
-                    final int bottomLeft = height( x, y + sm1 );
-                    final int bottomRight = height( x + sm1, y + sm1 );
-                    final int centerValue = rnd.rndValue(scale) + ( topLeft + topRight + bottomLeft + bottomRight) / 4;
+                    final float topLeft = height( x, y );
+                    final float topRight = height( x + sm1, y );
+                    final float bottomLeft = height( x, y + sm1 );
+                    final float bottomRight = height( x + sm1, y + sm1 );
+                    final float centerValue = rnd.rndValue(scale) + ( topLeft + topRight + bottomLeft + bottomRight) / 4;
                     final int cx = x + stepSize/2;
                     final int cy = y + stepSize/2;
                     fastSetHeight(cx, cy, centerValue);
@@ -220,21 +220,21 @@ public class Data
             {
                 for (int x = 0; x < size ; x += stepSize)
                 {
-                    final int topCenter = height( x+stepSize/2 , (y-stepSize/2) );
-                    final int bottomCenter = height( x+stepSize/2 , (y+stepSize+stepSize/2) );
-                    final int leftCenter = height( x-stepSize/2 , (y+stepSize/2) );
-                    final int rightCenter = height( x+stepSize+stepSize/2 , (y+stepSize/2) );
+                    final float topCenter = height( x+stepSize/2 , (y-stepSize/2) );
+                    final float bottomCenter = height( x+stepSize/2 , (y+stepSize+stepSize/2) );
+                    final float leftCenter = height( x-stepSize/2 , (y+stepSize/2) );
+                    final float rightCenter = height( x+stepSize+stepSize/2 , (y+stepSize/2) );
 
-                    final int topLeft = height( x, y );
-                    final int topRight = height( x + sm1, y );
-                    final int bottomLeft = height( x, y + sm1 );
-                    final int bottomRight = height( x + sm1, y + sm1 );
+                    final float topLeft = height( x, y );
+                    final float topRight = height( x + sm1, y );
+                    final float bottomLeft = height( x, y + sm1 );
+                    final float bottomRight = height( x + sm1, y + sm1 );
 
                     final int cx = x + stepSize/2;
                     final int cy = y + stepSize/2;
-                    final int center = height(cx,cy);
+                    final float center = height(cx,cy);
 
-                    int newValue;
+                    float newValue;
                     // top-center
                     newValue = rnd.rndValue( scale ) + (topLeft + topRight + topCenter + center)/4;
                     fastSetHeight( cx, y, newValue );
@@ -266,13 +266,13 @@ public class Data
             float factor = 255f/(max-min);
             for ( int i = 0 ; i < size*size ; i++ ) {
                 float newValue = (height[i]-min)*factor;
-                height[i] = (byte) newValue;
+                height[i] = newValue;
             }
         }
         return this;
     }
 
-    public int height(int x,int y) {
+    public float height(int x,int y) {
         try
         {
             int rx = x;
@@ -283,7 +283,7 @@ public class Data
             while ( ry < 0 ) {
                 ry += size;
             }
-            return this.height[ (ry%size) * size + (rx%size)] & 0xff;
+            return this.height[ (ry%size) * size + (rx%size)];
         }
         catch(ArrayIndexOutOfBoundsException e) {
             System.out.flush();
@@ -325,17 +325,11 @@ public class Data
         setWater(x,y,water( x,y ) + increment );
     }
 
-    private void fastSetHeight(int x, int y, int value)
+    private void fastSetHeight(int x, int y, float value)
     {
-        int rx = x;
-        while ( rx < 0 ) {
-            rx += size;
-        }
-        int ry = y;
-        while ( ry < 0 ) {
-            ry += size;
-        }
-        this.height[ (ry%size)*size + (rx%size) ] = (byte) (value > 255 ? 255 : value < 0 ? 0 : value );
+        while ( x < 0 ) {  x += size; }
+        while ( y < 0 ) {  y += size; }
+        this.height[ (y%size)*size + (x%size) ] = value;
     }
 
     public void setHeight(int x, int y, int value)

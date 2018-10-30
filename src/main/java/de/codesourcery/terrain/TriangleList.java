@@ -144,7 +144,7 @@ public class TriangleList
         int heightMapPtr = 0;
         int vertexPtr = this.vertexPtr;
         final float[] vertexArray = this.vertices;
-        final byte[] heightMap = data.height;
+        final float[] heightMap = data.height;
 
         int iz=0;
         for ( float z = zStart ; iz < size; z+=squareSize,iz++)
@@ -152,19 +152,18 @@ public class TriangleList
             float x = xStart;
             for ( int ix = 0; ix < size; x+=squareSize,ix++)
             {
-                final float height = (heightMap[heightMapPtr++] & 0xff);
+                final float height = heightMap[heightMapPtr++];
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = 0.05f*height;
 //                vertexArray[vertexPtr+1] = (ix%2 == 0 || iz%2 == 0 ) ? 10:0;
                 vertexArray[vertexPtr+2] = z;
-                // normals
-                // color
+                // normals: index 3..5
+                // color unpacked
                 vertexArray[vertexPtr+6] = 0;
                 vertexArray[vertexPtr+7] = 1;
                 vertexArray[vertexPtr+8] = 0;
                 vertexArray[vertexPtr+9] = 1; // a
 
-                final int pointNo = iz*size + ix;
                 vertexPtr += COMPONENT_CNT;
             }
         }

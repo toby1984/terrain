@@ -28,11 +28,11 @@ public class Main extends JFrame
 
     private static final float START_SCALE = 1f;
 
-    private static final float SCALE_REDUCE = 0.5f;
+    private static final float SCALE_REDUCE = 0.8f;
 
     private static final int RND_RANGE = 100;
 
-    private static final int INITAL_SIZE = 129;
+    private static final int INITAL_SIZE = 257;
 
     private static final int FLOW_STEPS = 10;
 
@@ -383,11 +383,12 @@ public class Main extends JFrame
                         minWater = Math.min( minWater, w );
                         maxWater = Math.max( maxWater, w );
                     }
-                    final int v = data.height( x, y );
+                    int v = (int) data.height( x, y );
+                    v = (v<0) ? 0 : v;
                     final int color;
                     if ( COLORIZE )
                     {
-                        color = gradient[v];
+                        color = gradient[v % gradient.length];
                     }
                     else
                     {

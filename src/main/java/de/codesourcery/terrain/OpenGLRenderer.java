@@ -79,7 +79,6 @@ public class OpenGLRenderer implements ApplicationListener
         environment.set( IntAttribute.createCullFace( GL20.GL_FRONT ));
 
         final Vector3 lightDir1 = new Vector3(0,0,1);
-        final Vector3 lightDir2 = new Vector3(0,-1,0);
         environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, lightDir1));
 
         camera.viewportWidth = Gdx.graphics.getWidth();
