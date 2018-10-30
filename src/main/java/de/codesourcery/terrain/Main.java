@@ -1,18 +1,7 @@
 package de.codesourcery.terrain;
 
-import com.badlogic.gdx.Input;
-import com.badlogic.gdx.math.Vector3;
-
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Point;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -89,9 +78,9 @@ public class Main extends JFrame
     {
         private BufferedImage image;
         private Graphics2D imageGfx;
-        private Renderer renderer = new Renderer();
+        private OpenGLFrame glFrame = new OpenGLFrame();
 
-        private boolean render2D=false;
+        private boolean render2D=true;
 
         private Point highlight = null;
 
@@ -113,39 +102,9 @@ public class Main extends JFrame
                 private final Point dragStartPos = new Point();
                 private float dragStartValue;
 
-                private int dragStartX,dragStartY;
-
-                private final Vector3 tmp = new Vector3();
-
-                private void handleDrag(MouseEvent e)
-                {
-                    final float degreesPerPixel = 0.05f;
-                    int dx = e.getX() - dragStartX;
-                    int dy = e.getY() - dragStartY;
-                    float deltaX = -dx * degreesPerPixel;
-                    float deltaY = -dy * degreesPerPixel;
-                    renderer.camera.direction.rotate(renderer.camera.up, deltaX);
-                    tmp.set(renderer.camera.direction).crs(renderer.camera.up).nor();
-                    renderer.camera.direction.rotate(tmp, deltaY);
-                    renderer.camera.update();
-                }
-
                 @Override
                 public void mouseDragged(MouseEvent e)
                 {
-                    if ( ! render2D )
-                    {
-                        if ( isDragging ) {
-                            handleDrag(e);
-                            repaint();
-                        } else {
-                            isDragging = true;
-                            dragStartX = e.getX();
-                            dragStartY = e.getY();
-                        }
-                        return;
-                    }
-
                     final Point p = point(e);
                     if ( p != null )
                     {
@@ -273,62 +232,9 @@ public class Main extends JFrame
 
             addKeyListener( new KeyAdapter()
             {
-                private void keyPressOrRelease(KeyEvent e,boolean keyUp)
-                {
-                    final int key;
-                    switch ( e.getKeyChar() )
-                    {
-                        case 'w':
-                            key = Input.Keys.W;
-                            break;
-                        case 'a':
-                            key = Input.Keys.A;
-                            break;
-                        case 's':
-                            key = Input.Keys.S;
-                            break;
-                        case 'd':
-                            key = Input.Keys.D;
-                            break;
-                        case 'q':
-                            key = Input.Keys.Q;
-                            break;
-                        case 'e':
-                            key = Input.Keys.E;
-                            break;
-                        default:
-                            return;
-                    }
-                    if ( keyUp )
-                    {
-                        renderer.cameraController.keyUp( key );
-                    } else {
-                        renderer.cameraController.keyDown( key );
-                    }
-                    System.out.println("CAMERA POSITION: new Vector3("
-                            +renderer.camera.position.x+"f,"
-                            +renderer.camera.position.y+"f,"
-                            +renderer.camera.position.z+"f)");
-                    System.out.println("CAMERA DIRECTION: new Vector3("
-                            +renderer.camera.direction.x+"f,"
-                            +renderer.camera.direction.y+"f,"
-                            +renderer.camera.direction.z+"f)");
-                    repaint();
-                }
-
-                @Override
-                public void keyPressed(KeyEvent e)
-                {
-                    if ( ! render2D )
-                    {
-                        keyPressOrRelease( e, false );
-                    }
-                }
-
                 @Override
                 public void keyReleased(KeyEvent e)
                 {
-
                     if ( e.getKeyCode() == KeyEvent.VK_T) {
                         if ( waterSimulationRunning ) {
                             System.out.println("Stopping timer");
@@ -337,11 +243,6 @@ public class Main extends JFrame
                             System.out.println("Starting timer");
                             waterSimulationRunning = true;
                         }
-                    }
-
-                    if ( ! render2D )
-                    {
-                        keyPressOrRelease( e, true );
                     }
                 }
 
@@ -352,6 +253,7 @@ public class Main extends JFrame
                     switch( keyChar ) {
                         case 'v':
                             render2D = !render2D;
+                            glFrame.changeVisibility( ! render2D, Main.this );
                             repaint();
                             return;
                         case 'c':
@@ -360,19 +262,8 @@ public class Main extends JFrame
                             return;
                     }
 
-                    if ( ! render2D )
-                    {
-                        return;
-                    }
-
                     switch ( keyChar )
                     {
-                        case '+':
-                            renderer.zoomIn();
-                            break;
-                        case '-':
-                            renderer.zoomOut();
-                            break;
                         case 't': // handled by keyReleased() already
                             return;
                         case 's':
@@ -465,32 +356,16 @@ public class Main extends JFrame
                 timer.start();
             }
             final long t1 = System.currentTimeMillis();
-            if ( render2D ) {
-                render2D( g );
-            }
-            else
+            if ( data.dirty )
             {
-                render3D( g );
+                glFrame.renderer.setData( data );
+                data.dirty = false;
             }
+            render2D( g );
             final long t2 = System.currentTimeMillis();
             if ( frames++ % 60 == 0 ) {
                 System.out.println("paint() took "+(t2-t1)+" ms");
             }
-        }
-
-        private void render3D(Graphics g)
-        {
-            super.paintComponent(g);
-
-            renderer.setData( data );
-            renderer.camera.viewportHeight = getHeight();
-            renderer.camera.viewportWidth = getWidth();
-            renderer.camera.near = 0.1f;
-            renderer.camera.far = 200f;
-            renderer.camera.update();
-
-            renderer.render((Graphics2D) g);
-            renderUI(g);
         }
 
         private void render2D(Graphics g)
@@ -573,9 +448,10 @@ public class Main extends JFrame
             int y = 20;
             final int fontHeight = 20;
             if ( ! render2D ) {
-                g.drawString( "Camera: "+renderer.camera.position,10,y);
+                // TODO: Accessing camera probably needs synchronized{} ...
+                g.drawString( "Camera: "+ glFrame.camera().position,10,y);
                 y += fontHeight;
-                g.drawString( "Look-At: "+renderer.camera.direction,10,y);
+                g.drawString( "Look-At: "+ glFrame.camera().direction,10,y);
                 return;
             }
             if ( highlight != null )
@@ -624,18 +500,8 @@ public class Main extends JFrame
 
     private boolean waterSimulationRunning = false;
 
-    private long lastTickTime;
-
     private final Timer timer = new Timer((int) (1000f/FPS), ev ->
     {
-        long time = System.currentTimeMillis();
-        if ( lastTickTime != 0 )
-        {
-            float elapsedSeconds = (lastTickTime-time)/1000f;
-            panel.renderer.cameraController.update(elapsedSeconds);
-        }
-        lastTickTime = time;
-
         if ( !waterSimulationRunning ) {
             panel.repaint();
             return;

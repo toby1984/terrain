@@ -5,19 +5,13 @@ import com.badlogic.gdx.math.Vector3;
 
 public class TriangleList
 {
-    public static final int COMPONENT_CNT = 3;
-
-    private static final boolean DEPTH_SORT = true;
-    private static final boolean CULL_SURFACES = true;
+    public static final int COMPONENT_CNT = 6;
 
     // vertices
     public float vertices[]=new float[0];
 
-    // normal vectors
-    public float normals[] = new float[0];
-
     // triangle corner indices (clockwise)
-    public int[] indices =new int[0];
+    public short[] indices =new short[0];
 
     private int vertexPtr = 0;
     private int idxPtr = 0;
@@ -28,8 +22,8 @@ public class TriangleList
         return tmp;
     }
 
-    private static int[] realloc(int[] array,int newLen) {
-        final int[] tmp = new int[ newLen ];
+    private static short[] realloc(short[] array,int newLen) {
+        final short[] tmp = new short[ newLen ];
         System.arraycopy( array,0,tmp,0,array.length );
         return tmp;
     }
@@ -48,7 +42,6 @@ public class TriangleList
             final int pointCnt = vertexCount();
             final int newPointCnt = pointCnt + pointCnt/2 + 1;
             this.vertices = realloc(this.vertices,newPointCnt* COMPONENT_CNT );
-            this.normals = realloc(this.normals, newPointCnt * 3 );
         }
         final int idx = vertexPtr;
         this.vertices[idx] = x;
@@ -56,19 +49,19 @@ public class TriangleList
         this.vertices[idx+2] = z;
         vertexPtr += COMPONENT_CNT;
     }
-    
-    public void addTriangle(int p0,int p1,int p2) 
+
+    public void addTriangle(int p0,int p1,int p2)
     {
-        if ( idxPtr == indices.length ) 
+        if ( idxPtr == indices.length )
         {
             final int triCount = triangleCount();
             final int newTriCount = triCount + triCount/2 + 1;
             indices = realloc( indices, newTriCount*3 );
         }
         final int idx = idxPtr;
-        indices[idx ]=p0;
-        indices[idx+1]=p1;
-        indices[idx+2]=p2;
+        indices[idx ]=(short) p0;
+        indices[idx+1]=(short) p1;
+        indices[idx+2]=(short) p2;
         idxPtr +=3;
     }
 
@@ -84,33 +77,32 @@ public class TriangleList
     public int indexCount() {
         return idxPtr;
     }
-    
+
     public int triangleCount() {
         return idxPtr/ 3;
     }
-    
-    public void assureVertices(int count) 
+
+    public void assureVertices(int count)
     {
         final int available = (vertices.length-vertexPtr)/ COMPONENT_CNT;
         final int needed = count - available;
-        if ( needed > 0 ) 
+        if ( needed > 0 )
         {
             vertices = realloc( vertices, this.vertices.length+needed* COMPONENT_CNT );
-            normals = realloc( normals, this.normals.length+needed*3);
         }
     }
 
-    public void assureIndices(int count) 
+    public void assureIndices(int count)
     {
         final int available = this.indices.length - idxPtr;
         int needed = count-available;
         if ( needed > 0 ) {
-            this.indices = realloc( this.indices, 
+            this.indices = realloc( this.indices,
                     this.indices.length + needed );
         }
     }
 
-    public void copyTo(TriangleList destination,boolean copyNormals)
+    public void copyTo(TriangleList destination)
     {
         destination.clear();
         destination.assureIndices( indexCount() );
@@ -118,39 +110,22 @@ public class TriangleList
 
         System.arraycopy( vertices,0,destination.vertices,0,vertexPtr );
         System.arraycopy( indices,0,destination.indices,0,idxPtr );
-        if ( copyNormals )
-        {
-            System.arraycopy( normals, 0, destination.normals, 0, vertexCount() * 3 );
-        }
+
         destination.vertexPtr = this.vertexPtr;
         destination.idxPtr = this.idxPtr;
-    }
-    
-    public void multiply(Matrix4 m) {
-        Matrix4.mulVec( m.val,vertices,0,vertexCount(),COMPONENT_CNT );
-    }
-
-    public void project(Matrix4 m) {
-        Matrix4.prj( m.val,vertices,0,vertexCount(),COMPONENT_CNT );
-    }
-
-    private String readVertex(int vertexNo)
-    {
-        final int idx = vertexNo * COMPONENT_CNT;
-        return new Vector3( vertices[idx], vertices[idx+1], vertices[idx+2]).toString();
     }
 
     public void setupMesh(Data data, final float squareSize)
     {
         clear();
-        
+
         // pre-size arrays
         assureVertices( data.size*data.size );
-        
+
         final int quadCount = (data.size-1)*(data.size-1);
         final int triangleCount = quadCount*2;
         assureIndices( triangleCount* COMPONENT_CNT );
-        
+
         // setup vertices
         final int size = data.size;
         final float xStart = -((size/2) * squareSize);
@@ -171,14 +146,14 @@ public class TriangleList
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = 0.05f*height;
                 vertexArray[vertexPtr+2] = z;
-                vertexPtr += COMPONENT_CNT;
             }
+            vertexPtr += COMPONENT_CNT;
         }
         this.vertexPtr = vertexPtr;
-        
+
         // setup indices
         int idxPtr = this.idxPtr;
-        final int[] idxArray = this.indices;
+        final short[] idxArray = this.indices;
         for ( iz = 0 ; iz < size-1; iz++)
         {
             int p0Ptr = iz * size;
@@ -188,17 +163,14 @@ public class TriangleList
             for (int ix = 0; ix < size-1; ix++)
             {
                 // triangle #0
-                idxArray[idxPtr  ] = p0Ptr;
-                idxArray[idxPtr+1] = p1Ptr;
-                idxArray[idxPtr+2] = p2Ptr;
-
-//                System.out.println("Adding triangle: "+readVertex( p0Ptr )+" -> "+readVertex(p1Ptr)+" -> "+readVertex(p2Ptr));
+                idxArray[idxPtr  ] = (short) p0Ptr;
+                idxArray[idxPtr+1] = (short) p1Ptr;
+                idxArray[idxPtr+2] = (short) p2Ptr;
 
                 // triangle #1
-                idxArray[idxPtr+3] = p0Ptr;
-                idxArray[idxPtr+4] = p2Ptr;
-                idxArray[idxPtr+5] = p3Ptr;
-//                System.out.println("Adding triangle: "+readVertex( p0Ptr )+" -> "+readVertex(p2Ptr)+" -> "+readVertex(p3Ptr));
+                idxArray[idxPtr+3] = (short) p0Ptr;
+                idxArray[idxPtr+4] = (short) p2Ptr;
+                idxArray[idxPtr+5] = (short) p3Ptr;
 
                 idxPtr += 6;
 
@@ -209,23 +181,115 @@ public class TriangleList
             }
         }
         this.idxPtr = idxPtr;
-//        System.out.println("setupMesh(): "+vertexCount()+" vertices, "+indexCount()+ " indices, "+triangleCount()+" triangles");
+
+        // calculate normals
+        final Vector3 center=new Vector3();
+
+        final Vector3 top=new Vector3();
+        final Vector3 left=new Vector3();
+        final Vector3 right=new Vector3();
+        final Vector3 bottom=new Vector3();
+
+        final Vector3 sum=new Vector3();
+
+        vertexPtr = 0;
+        iz=0;
+        for ( float z = zStart ; iz < size; z+=squareSize,iz++)
+        {
+            float x = xStart;
+            for ( int ix = 0; ix < size; x+=squareSize,ix++)
+            {
+                center.set( vertexArray[vertexPtr], vertexArray[vertexPtr+1], vertexArray[vertexPtr+2] );
+
+                n.set(0,0,0);
+                if ( iz == 0 )
+                {
+                    // top row
+                    if ( ix == 0 ) {
+                        // leftmost column: center,right,bottom (1)
+                        int idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr + ( COMPONENT_CNT*size);
+                        bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+
+                        sum.set( calcNormal( center, bottom, right ) );
+
+                    }  else if ( ix == size-1 ) {
+                        // rightmost column: center,left,bottom (3)
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr + ( COMPONENT_CNT*size);
+                        bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+
+                        sum.set( calcNormal( center, left, bottom) );
+
+                    } else {
+                        // in-between: center,left,right,bottom (2)
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr + ( COMPONENT_CNT*size);
+                        bottom.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+
+
+                    }
+                }
+                else if ( iz == size-1 )
+                {
+                    // bottom row
+                    if ( ix == 0 ) {
+                        // leftmost column: center,right,top
+                        int idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr-size*COMPONENT_CNT;
+                        top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                    }  else if ( ix == size-1 ) {
+                        // rightmost column: center,left,top
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr-size*COMPONENT_CNT;
+                        top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                    } else {
+                        // in-between: center,left,right,top
+                        int idx = vertexPtr-COMPONENT_CNT;
+                        left.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr+COMPONENT_CNT;
+                        right.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                        idx = vertexPtr-size*COMPONENT_CNT;
+                        top.set( vertexArray[idx], vertexArray[idx+1],vertexArray[idx+2] );
+                    }
+                }
+                else
+                {
+                    // in-between row
+                    if ( ix == 0 ) {
+                        // leftmost column: current,right,top,bottom
+                    }  else if ( ix == size-1 ) {
+                        // rightmost column: current,left,top,bottom
+                    } else {
+                        // in-between: current,left,right,top,bottom
+                    }
+                }
+            }
+            vertexPtr += COMPONENT_CNT;
+        }
     }
 
-    public interface IVisitor {
+    private final Vector3 u=new Vector3();
+    private final Vector3 v=new Vector3();
+    private final Vector3 n=new Vector3();
 
-        void beforeFirstVisit();
-
-        /**
-         *
-         * @param p0Idx start of first point in vertex array
-         * @param p1Idx start of second point in vertex array
-         * @param p2Idx start of third point in vertex array
-         */
-        void visit(int p0Idx,int p1Idx,int p2Idx);
+    private Vector3 calcNormal(Vector3 base,Vector3 left,Vector3 right)
+    {
+        u.set( left ).sub(base);
+        v.set( right).sub(base);
+        n.set( u.crs( v ) ).nor();
+        return n;
     }
 
-    public void setToCube(float size) {
+    public void setToCube(float size)
+    {
         clear();
 
         // back
@@ -267,6 +331,8 @@ public class TriangleList
 
         // back side
         addQuad(p1i,p0i,p3i,p2i);
+
+        calculateNormals();
     }
 
     private void addQuad(int p0,int p1,int p2,int p3)
@@ -275,11 +341,8 @@ public class TriangleList
         addTriangle( p0,p2,p3 );
     }
 
-    public void visitDepthSortedTriangles(float viewX,float viewY,float viewZ,IVisitor visitor)
+    private void calculateNormals()
     {
-        final float[] distances = new float[ triangleCount() ];
-        final int[] triangleNo = new int[ triangleCount() ];
-
         // calculate squared distance to midpoint of each triangle
         final Vector3 p0 = new Vector3();
         final Vector3 p1 = new Vector3();
@@ -287,119 +350,46 @@ public class TriangleList
         final Vector3 u = new Vector3();
         final Vector3 v = new Vector3();
         final Vector3 n = new Vector3();
-        final Vector3 viewVec = new Vector3();
-        final Vector3 avg = new Vector3();
 
         for ( int i = 0, cnt = triangleCount() ; i < cnt ; i++ )
         {
-            triangleNo[i] = i;
             final int triIdx = i*3;
 
             final int offsetP0 = indices[triIdx] * TriangleList.COMPONENT_CNT;
             final int offsetP1 = indices[triIdx + 1] * TriangleList.COMPONENT_CNT;
             final int offsetP2 = indices[triIdx + 2] * TriangleList.COMPONENT_CNT;
 
-//            System.out.println("Triangle "+indices[triIdx]+" -> "+indices[triIdx + 1]+" -> "+indices[triIdx + 2]);
-
             final float p0X = vertices[offsetP0];
             final float p0Y = vertices[offsetP0 + 1];
             final float p0Z = vertices[offsetP0 + 2];
-            p0.set( p0X, p0Y, p0Z );
 
             final float p1X = vertices[offsetP1];
             final float p1Y = vertices[offsetP1 + 1];
             final float p1Z = vertices[offsetP1 + 2];
-            p1.set( p1X, p1Y, p1Z );
 
             final float p2X = vertices[offsetP2];
             final float p2Y = vertices[offsetP2 + 1];
             final float p2Z = vertices[offsetP2 + 2];
+
+            p0.set( p0X, p0Y, p0Z );
+            p1.set( p1X, p1Y, p1Z );
             p2.set( p2X, p2Y, p2Z );
 
-            // calculate mid-point
-            avg.set(p0).add(p1).add(p2).scl(1f/3);
-            distances[i] = avg.dst2( viewX,viewY,viewZ );
+            u.set(p2).sub(p0);
+            v.set(p1).sub(p0);
+            n.set(u).crs(v).nor();
 
-            // calculate normal vector
-            u.set(p1).sub(p0);
-            v.set(p2).sub(p0);
-            n.set(v).crs( u ).nor(); // TODO: Normalization needed?
+            vertices[offsetP0+3] = n.x;
+            vertices[offsetP0+4] = n.y;
+            vertices[offsetP0+5] = n.z;
 
-            normals[offsetP0]   = n.x;
-            normals[offsetP0+1] = n.y;
-            normals[offsetP0+2] = n.z;
+            vertices[offsetP1+3] = n.x;
+            vertices[offsetP1+4] = n.y;
+            vertices[offsetP1+5] = n.z;
 
-            // calculate view vector
-            viewVec.set(viewX,viewY,viewZ).sub(p0).nor();
-
-            // calculate dot product between normal vector and view vector
-            // to determine angle
-            if ( ! CULL_SURFACES || n.dot( viewVec ) > 0 ) {
-                triangleNo[i] = i;
-            } else {
-                triangleNo[i] = -1;
-            }
-        }
-
-        // perform depth sort
-        if ( DEPTH_SORT )
-        {
-            quickSort( 0, distances.length - 1, distances, triangleNo );
-        }
-
-        // start visiting triangles with the one farthest away
-        visitor.beforeFirstVisit();
-        for ( int i = triangleNo.length-1 ; i >= 0 ; i--)
-        {
-            final int tri = triangleNo[i];
-            if ( tri >= 0 ) // only consider visible triangles
-            {
-                final int idxOffset = tri * 3;
-                visitor.visit( indices[idxOffset]     * TriangleList.COMPONENT_CNT,
-                               indices[idxOffset + 1] * TriangleList.COMPONENT_CNT,
-                               indices[idxOffset + 2] * TriangleList.COMPONENT_CNT
-                );
-            }
-        }
-    }
-
-    private static void quickSort(int l, int r, float[] distances, int[] triangles) {
-
-        if (l < r)
-        {
-            final int q = partition(l, r,distances,triangles);
-            quickSort(l, q,distances,triangles);
-            quickSort(q + 1, r,distances,triangles);
-        }
-    }
-
-    private static int partition(int l, int r,float[] distances,int[] triangles) {
-
-        float pivot = distances[(l + r) / 2];
-        int i = l - 1;
-        int j = r + 1;
-        while (true)
-        {
-            do {
-                i++;
-            } while (distances[i] < pivot);
-
-            do {
-                j--;
-            } while (distances[j] > pivot);
-
-            if (i < j)
-            {
-                final float tmp = distances[i];
-                distances[i] = distances[j];
-                distances[j] = tmp;
-
-                final int tmpi = triangles[i];
-                triangles[i] = triangles[j];
-                triangles[j] = tmpi;
-            } else {
-                return j;
-            }
+            vertices[offsetP2+3] = n.x;
+            vertices[offsetP2+4] = n.y;
+            vertices[offsetP2+5] = n.z;
         }
     }
 }

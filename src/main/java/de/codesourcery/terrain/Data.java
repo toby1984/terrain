@@ -14,34 +14,42 @@ public class Data
     public final float[] water;
     public final int size;
 
-    public void save(OutputStream out) throws IOException {
-        writeInt(size,out);
-        writeArray( height,out );
-        writeArray( water,out );
-    }
+    public boolean dirty = true;
 
-    public static Data read(InputStream in) throws IOException {
-        final int size = readInt(in);
-        final Data result = new Data(size);
-        byte[] byteArray = readByteArray(in);
-        System.arraycopy( byteArray,0,result.height,0,size*size );
-
-        float[] floatArray = readFloatArray(in);
-        System.arraycopy( floatArray,0,result.water,0,size*size );
-
-        return result;
-    }
+    private final PointList points = new PointList();
 
     public Data(int size)
     {
         this.size = size;
         this.height = new byte[size*size];
         this.water = new float[size*size];
+        this.dirty = true;
+    }
+
+    public void save(OutputStream out) throws IOException {
+        writeInt(size,out);
+        writeArray( height,out );
+        writeArray( water,out );
+    }
+
+    public static Data read(InputStream in) throws IOException
+    {
+        final int size = readInt(in);
+        final Data result = new Data(size);
+        final byte[] byteArray = readByteArray(in);
+        System.arraycopy( byteArray,0,result.height,0,size*size );
+
+        final float[] floatArray = readFloatArray(in);
+        System.arraycopy( floatArray,0,result.water,0,size*size );
+
+        result.dirty = true;
+        return result;
     }
 
     public void clear() {
         Arrays.fill( height,(byte) 0);
         Arrays.fill( water,0);
+        dirty = true;
     }
 
     private final class RandomGen
@@ -74,15 +82,16 @@ public class Data
             int h = height[i] & 0xff;
             water[i] = h > minHeight ? water[i]+amount: 0;
         }
+        dirty = true;
     }
 
     private float trueHeight(int x,int y) {
         return height(x,y)+water(x,y);
     }
 
-    private final PointList points = new PointList();
-
     public void flow() {
+
+        dirty = true;
 
         for ( int x = 0 ; x < size ; x++ )
         {
@@ -127,11 +136,11 @@ public class Data
                     {
                         final float fraction = excessWater / (points.size()+1);
                         float newValue = water(x,y) - fraction*points.size();
-                        setWater(x,y, newValue < EPSILON ? 0 : newValue );
+                        fastSetWater(x,y, newValue < EPSILON ? 0 : newValue );
                         points.forEach( fraction, (px,py,data) ->
                         {
                             final float newW = water(px,py)+data;
-                            setWater(px,py,newW < EPSILON ? 0 : newW );
+                            fastSetWater(px,py,newW < EPSILON ? 0 : newW );
                         });
                     }
                 }
@@ -140,6 +149,7 @@ public class Data
     }
 
     public void clearWater() {
+        dirty = true;
         Arrays.fill(water,(byte)0);
     }
 
@@ -149,6 +159,8 @@ public class Data
 
     public Data initHeights(long seed,float startScale,int range,float scaleReduction,boolean normalize)
     {
+        dirty = true;
+
         final RandomGen rnd = new RandomGen(seed,range);
 
         Arrays.fill(height,(byte) 0);
@@ -157,10 +169,10 @@ public class Data
         for ( int i = 0 ; i < tmp.length ; i++ ) {
             tmp[i] = (byte) rnd.rndValue();
         }
-        setHeight(0,0, tmp[0] );
-        setHeight(size-1,0, tmp[1] );
-        setHeight(0,size-1, tmp[2] );
-        setHeight(size-1,size-1, tmp[3] );
+        fastSetHeight(0,0, tmp[0] );
+        fastSetHeight(size-1,0, tmp[1] );
+        fastSetHeight(0,size-1, tmp[2] );
+        fastSetHeight(size-1,size-1, tmp[3] );
 
         int stepSize = size;
         float scale = startScale;
@@ -190,7 +202,7 @@ public class Data
                     final int centerValue = rnd.rndValue(scale) + ( topLeft + topRight + bottomLeft + bottomRight) / 4;
                     final int cx = x + stepSize/2;
                     final int cy = y + stepSize/2;
-                    setHeight(cx, cy, centerValue);
+                    fastSetHeight(cx, cy, centerValue);
                     max = Math.max( max , centerValue );
                     min = Math.min( min, centerValue );
                 }
@@ -225,22 +237,22 @@ public class Data
                     int newValue;
                     // top-center
                     newValue = rnd.rndValue( scale ) + (topLeft + topRight + topCenter + center)/4;
-                    setHeight( cx, y, newValue );
+                    fastSetHeight( cx, y, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // bottom-center
                     newValue = rnd.rndValue( scale ) + (bottomLeft + bottomRight + bottomCenter + center) / 4;
-                    setHeight( cx,y+sm1, newValue );
+                    fastSetHeight( cx,y+sm1, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // left-center
                     newValue = rnd.rndValue( scale ) + (topLeft + bottomLeft + leftCenter + center)/4;
-                    setHeight( x, cy, newValue );
+                    fastSetHeight( x, cy, newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // right-center
                     newValue = rnd.rndValue(scale) + (topRight+bottomRight+rightCenter + center)/4;
-                    setHeight( x+sm1,cy,newValue );
+                    fastSetHeight( x+sm1,cy,newValue );
                     min = Math.min(min,newValue); max = Math.max(max,newValue);
                 }
             }
@@ -294,20 +306,26 @@ public class Data
         return sum;
     }
 
-    public void setWater(int x,int y,float value)
+    private void fastSetWater(int x,int y,float value)
     {
         this.water[ y*size + x ] = value;
     }
 
+    public void setWater(int x,int y,float value)
+    {
+        dirty = true;
+        fastSetWater(x,y,value);
+    }
+
     public void incHeight(int x,int y,int increment) {
-        setHeight(x,y,height( x,y ) + increment );
+        fastSetHeight(x,y,height( x,y ) + increment );
     }
 
     public void incWater(int x,int y,float increment) {
         setWater(x,y,water( x,y ) + increment );
     }
 
-    public void setHeight(int x,int y,int value)
+    private void fastSetHeight(int x, int y, int value)
     {
         int rx = x;
         while ( rx < 0 ) {
@@ -318,6 +336,12 @@ public class Data
             ry += size;
         }
         this.height[ (ry%size)*size + (rx%size) ] = (byte) (value > 255 ? 255 : value < 0 ? 0 : value );
+    }
+
+    public void setHeight(int x, int y, int value)
+    {
+        dirty = true;
+        fastSetHeight( x,y,value );
     }
 
     private static void writeArray(byte[] array,OutputStream out) throws IOException
