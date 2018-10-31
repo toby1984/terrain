@@ -2,6 +2,7 @@ package de.codesourcery.terrain;
 
 import com.badlogic.gdx.math.DelaunayTriangulator;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.FloatArray;
 
 import java.util.Arrays;
 
@@ -168,7 +169,7 @@ public class TriangleList
                     }
 
                     // now turn expanded area into outline
-                    toOutline(tmpVisited);
+                    toOutline(tmpVisited,data);
 
                     // TODO: Tesselate tmpVisited[] array into triangles
                     // TODO: Additional - merge adjacent triangles where all vertices
@@ -187,8 +188,41 @@ public class TriangleList
             int offset=iz*max;
             for (  int ix = 0 ; ix < max ; ix++,offset++ )
             {
-                if ( tmpVisited[offset] ) {
-
+                if ( tmpVisited[offset] )
+                {
+                    if ( iz < max-1 )
+                    {
+                        // inc bottom neigbour
+                        neighbourCount[offset+max]++;
+                    }
+                    if ( iz > 0 ) {
+                        // top bottom neigbour
+                        neighbourCount[offset-max]++;
+                    }
+                    if ( ix > 0 ) {
+                        // left neighbour
+                        neighbourCount[offset-1]++;
+                    }
+                    if ( ix < max-1 ) {
+                        // right neighbour
+                        neighbourCount[offset-1]++;
+                    }
+                    if ( ix > 0 && iz >0 ) {
+                        // top-left neighbour
+                        neighbourCount[offset-1-max]++;
+                    }
+                    if ( ix < max-1 && iz > 0 ) {
+                        // top-right neighbour
+                        neighbourCount[offset+1-max]++;
+                    }
+                    if ( ix > 0 && iz < max-1 ) {
+                        // bottom-left neighbour
+                        neighbourCount[offset-1+max]++;
+                    }
+                    if ( ix < max-1 && iz < max-1 ) {
+                        // bottom-right neighbour
+                        neighbourCount[offset+1+max]++;
+                    }
                 }
             }
         }
