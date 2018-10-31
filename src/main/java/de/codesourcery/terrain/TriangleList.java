@@ -1,5 +1,6 @@
 package de.codesourcery.terrain;
 
+import com.badlogic.gdx.math.DelaunayTriangulator;
 import com.badlogic.gdx.math.Vector3;
 
 import java.util.Arrays;
@@ -153,9 +154,10 @@ public class TriangleList
                 if ( ! visited[pointNo] &&
                         data.water[pointNo] != 0.0f)
                 {
-                    // we found water
+                    // we found water,try to expand area as much as possible
                     Arrays.fill(tmpVisited,false);
                     floodFill(ix,iz,tmpVisited,data);
+
                     // merge all visited cells
                     // into visited[] array
                     for ( int i = 0,len=data.size*data.size;i<len;i++)
@@ -164,9 +166,29 @@ public class TriangleList
                             visited[i]=true;
                         }
                     }
+
+                    // now turn expanded area into outline
+                    toOutline(tmpVisited);
+
                     // TODO: Tesselate tmpVisited[] array into triangles
                     // TODO: Additional - merge adjacent triangles where all vertices
                     // TODO: have approx. the same Y coordinate
+                }
+            }
+        }
+    }
+
+    private void toOutline(boolean[] tmpVisited,Data data)
+    {
+        final byte[] neighbourCount = new byte[data.size*data.size];
+        final int max = data.size;
+        for ( int iz = 0 ; iz < max ; iz++)
+        {
+            int offset=iz*max;
+            for (  int ix = 0 ; ix < max ; ix++,offset++ )
+            {
+                if ( tmpVisited[offset] ) {
+
                 }
             }
         }
