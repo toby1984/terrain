@@ -136,6 +136,64 @@ public class TriangleList
         destination.indexPtr = this.indexPtr;
     }
 
+    private static boolean[] toBooleanArray(String s,int size) {
+
+        boolean[] result = new boolean[size*size];
+        String[] rows = s.split("\n");
+        for ( int iy = 0 ; iy < size ; iy++)
+        {
+            for (int ix = 0; ix < size; ix++)
+            {
+                switch ( rows[iy].charAt( ix ) )
+                {
+                    case '.':
+                        result[iy * size + ix] = true;
+                        break;
+                    case '_':
+                        result[iy * size + ix] = false;
+                        break;
+                    default:
+                        throw new IllegalArgumentException( "Unhandled char: " + rows[iy].charAt( ix ) );
+                }
+            }
+        }
+        return result;
+    }
+
+    public static void main(String[] args)
+    {
+        final int size = 5;
+        final float tileSize = 5f;
+
+        Data data = new Data(size);
+        final String s =
+                        "___.__\n"+
+                        "_...._\n"+
+                        ".....\n"+
+                        "._...\n"+
+                        "___..\n";
+        final boolean[] bool = toBooleanArray( s, size );
+        print( bool, size);
+        toOutline( bool, data );
+        print( bool, size);
+        final FloatArray array = new FloatArray();
+        outlineToVertices( bool,array,tileSize,data );
+        System.out.println("Array size: "+array.size);
+        Arrays.fill(bool,false);
+        final float xOrigin = -tileSize*data.size/2f;
+        final float zOrigin = -tileSize*data.size/2f;
+        for ( int i = 0 ; i < array.size ; i+=2 )
+        {
+            float x = array.get( i );
+            float y = array.get( i+1 );
+            final int ix = (int) ((x + xOrigin)/tileSize);
+            final int iz = (int) ((x + xOrigin)/tileSize);
+            bool[ ix + iz*size ] = true;
+        }
+        System.out.println("Polygon:");
+        print(bool,size);
+    }
+
     public void setupWaterMesh(Data data, final float squareSize)
     {
         clear();
@@ -159,6 +217,9 @@ public class TriangleList
                     Arrays.fill(tmpVisited,false);
                     floodFill(ix,iz,tmpVisited,data);
 
+                    System.out.println("AFTER FLOOD-FILL:");
+                    System.out.println("AFTER FLOOD-FILL:");
+                    print(tmpVisited,data.size);
                     // merge all visited cells
                     // into visited[] array
                     for ( int i = 0,len=data.size*data.size;i<len;i++)
@@ -170,6 +231,8 @@ public class TriangleList
 
                     // now turn expanded area into outline
                     toOutline(tmpVisited,data);
+                    System.out.println("AFTER OUTLINE DETECTION:");
+                    print(tmpVisited,data.size);
 
                     // TODO: Tesselate tmpVisited[] array into triangles
                     // TODO: Additional - merge adjacent triangles where all vertices
@@ -179,49 +242,160 @@ public class TriangleList
         }
     }
 
-    private void toOutline(boolean[] tmpVisited,Data data)
+    private static void print(boolean[] data,int size)
     {
-        final byte[] neighbourCount = new byte[data.size*data.size];
+        for ( int iz = 0 ; iz < size ; iz++)
+        {
+            for ( int ix = 0 ; ix < size ; ix++ ) {
+                if ( data[iz*size+ix] ) {
+                    System.out.print(".");
+                }
+                else
+                {
+                    System.out.print( "_" );
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    private static void outlineToVertices(boolean[] outline,FloatArray array,float tileSize,Data data)
+    {
+        final float xOrigin = -tileSize*data.size/2;
+        final float zOrigin = -tileSize*data.size/2;
+
+        int max = data.size;
+        int iz = 0;
+        // find first point on outline
+        int firstX = -1;
+        int firstZ = -1;
+        for ( ; iz < max-1 ; iz++ )
+        {
+            firstX = findFirstPointFromLeft( outline, iz, data );
+            if ( firstX != -1 )
+            {
+                firstZ = iz;
+                break;
+            }
+        }
+        if ( firstX == -1 )
+        {
+            return; // empty outline
+        }
+        // find next left-most point
+        iz++;
+        int secondX;
+        int dx = Integer.MAX_VALUE;
+loop:
+        for ( ; iz < max-1 ; iz++ )
+        {
+            secondX = findFirstPointFromLeft( outline, iz, data );
+            if ( secondX != -1 )
+            {
+                final int delta = secondX - firstX;
+                if ( dx == Integer.MAX_VALUE || delta == dx )
+                {
+                    dx = delta;
+                    continue;
+                }
+                array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+                array.add( xOrigin + secondX * tileSize, zOrigin + iz * tileSize);
+                dx = delta;
+                firstX = secondX;
+                firstZ = iz;
+                continue;
+            }
+            array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+            break;
+        }
+
+        iz--;
+        // now go up and look for the right-most points
+        firstX = -1;
+        firstZ = -1;
+        for ( ; iz >= 0 ; iz-- )
+        {
+            firstX = findFirstPointFromRight( outline, iz, data );
+            if ( firstX != -1 )
+            {
+                firstZ = iz;
+                break;
+            }
+        }
+        if ( firstX == -1 )
+        {
+            return; // empty outline
+        }
+
+        // find next left-most point
+        iz--;
+        dx = Integer.MAX_VALUE;
+loop:
+        for ( ; iz >= 0 ; iz--)
+        {
+            secondX = findFirstPointFromLeft( outline, iz, data );
+            if ( secondX != -1 )
+            {
+                final int delta = secondX - firstX;
+                if ( dx == Integer.MAX_VALUE || delta == dx )
+                {
+                    dx = delta;
+                    continue;
+                }
+                array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+                array.add( xOrigin + secondX * tileSize, zOrigin + iz * tileSize);
+                dx = delta;
+                firstX = secondX;
+                firstZ = iz;
+                continue;
+            }
+            array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+            break;
+        }
+    }
+
+    private static int findFirstPointFromLeft(boolean[] outline,int iz,Data data)
+    {
+        int max=data.size;
+        int ptr = iz*max;
+        for ( int ix = 0; ix < max ; ix++,ptr++ ) {
+            if ( outline[ptr] ) {
+                return ix;
+            }
+        }
+        return -1;
+    }
+
+    private static int findFirstPointFromRight(boolean[] outline,int iz,Data data)
+    {
+        int max=data.size;
+        int ptr = (iz+1)*max-1;
+        for ( int ix = max-1 ; ix >= 0; ix--,ptr-- ) {
+            if ( outline[ptr] ) {
+                return ix;
+            }
+        }
+        return -1;
+    }
+
+    private static void toOutline(boolean[] tmpVisited,Data data)
+    {
         final int max = data.size;
-        for ( int iz = 0 ; iz < max ; iz++)
+        for ( int iz = 1 ; iz < max ; iz++)
         {
             int offset=iz*max;
-            for (  int ix = 0 ; ix < max ; ix++,offset++ )
+            int ix = 0;
+            for (  ; ix < max ; ix++,offset++ )
             {
                 if ( tmpVisited[offset] )
                 {
-                    if ( iz < max-1 )
+                    ix++;
+                    offset++;
+                    while( (ix+1) < max && tmpVisited[offset] && tmpVisited[offset+1])
                     {
-                        // inc bottom neigbour
-                        neighbourCount[offset+max]++;
-                    }
-                    if ( iz > 0 ) {
-                        // top bottom neigbour
-                        neighbourCount[offset-max]++;
-                    }
-                    if ( ix > 0 ) {
-                        // left neighbour
-                        neighbourCount[offset-1]++;
-                    }
-                    if ( ix < max-1 ) {
-                        // right neighbour
-                        neighbourCount[offset-1]++;
-                    }
-                    if ( ix > 0 && iz >0 ) {
-                        // top-left neighbour
-                        neighbourCount[offset-1-max]++;
-                    }
-                    if ( ix < max-1 && iz > 0 ) {
-                        // top-right neighbour
-                        neighbourCount[offset+1-max]++;
-                    }
-                    if ( ix > 0 && iz < max-1 ) {
-                        // bottom-left neighbour
-                        neighbourCount[offset-1+max]++;
-                    }
-                    if ( ix < max-1 && iz < max-1 ) {
-                        // bottom-right neighbour
-                        neighbourCount[offset+1+max]++;
+                        tmpVisited[offset]=false; // clear next
+                        ix++;
+                        offset++;
                     }
                 }
             }
