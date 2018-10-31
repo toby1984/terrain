@@ -2,12 +2,14 @@ package de.codesourcery.terrain;
 
 import com.badlogic.gdx.math.Vector3;
 
+import java.util.Arrays;
+
 public class TriangleList
 {
     public static final int COMPONENT_CNT = 10;
 
     // vertices
-    public float vertices[]=new float[0];
+    public float[] vertices=new float[0];
 
     // triangle corner indices (clockwise)
     public short[] indices =new short[0];
@@ -34,6 +36,13 @@ public class TriangleList
     private static short[] realloc(short[] array,int newLen)
     {
         final short[] tmp = new short[ newLen ];
+        System.arraycopy( array,0,tmp,0,Math.min(array.length,newLen) );
+        return tmp;
+    }
+
+    private static boolean[] realloc(boolean[] array,int newLen)
+    {
+        final boolean[] tmp = new boolean[ newLen ];
         System.arraycopy( array,0,tmp,0,Math.min(array.length,newLen) );
         return tmp;
     }
@@ -125,7 +134,72 @@ public class TriangleList
         destination.indexPtr = this.indexPtr;
     }
 
-    public void setupMesh(Data data, final float squareSize)
+    public void setupWaterMesh(Data data, final float squareSize)
+    {
+        clear();
+
+        final boolean[] visited =
+                new boolean[ data.size*data.size ];
+
+        final boolean[] tmpVisited =
+                new boolean[ data.size*data.size ];
+
+        int pointNo = 0;
+        int vertexIdx = 0;
+        for (int iz = 0 ; iz < data.size ; iz++)
+        {
+            for (int ix = 0 ; ix < data.size ; ix++,pointNo++,vertexIdx += COMPONENT_CNT)
+            {
+                if ( ! visited[pointNo] &&
+                        data.water[pointNo] != 0.0f)
+                {
+                    // we found water
+                    Arrays.fill(tmpVisited,false);
+                    floodFill(ix,iz,tmpVisited,data);
+                    // merge all visited cells
+                    // into visited[] array
+                    for ( int i = 0,len=data.size*data.size;i<len;i++)
+                    {
+                        if ( tmpVisited[i] ) {
+                            visited[i]=true;
+                        }
+                    }
+                    // TODO: Tesselate tmpVisited[] array into triangles
+                    // TODO: Additional - merge adjacent triangles where all vertices
+                    // TODO: have approx. the same Y coordinate
+                }
+            }
+        }
+    }
+
+    private void floodFill(int ix, int iz, boolean[] tmpVisited, Data data)
+    {
+        final int offset = iz*data.size+ix;
+        tmpVisited[offset] = true;
+
+        final int minX = ix == 0 ? 0 : ix-1;
+        final int minZ = iz == 0 ? 0 : iz-1;
+        final int maxX = ix == data.size-1 ? 0 : ix+1;
+        final int maxZ = iz == data.size-1 ? 0 : iz+1;
+        for ( int dx = minX ; dx < maxX ; dx++ )
+        {
+            for ( int dz = minZ ; dz < maxZ ; dz++ )
+            {
+                if ( dx != 0 || dz != 0 ) {
+                    int rx = ix+dx;
+                    int rz = iz+dz;
+                    int ptr = rz*data.size+rx;
+                    if ( data.water[ptr] != 0 && ! tmpVisited[ptr] )
+                    {
+                        floodFill( rx,rz,tmpVisited,data );
+                    }
+                }
+            }
+        }
+    }
+
+
+    public void setupHeightMesh(Data data, final float squareSize)
     {
         clear();
 
