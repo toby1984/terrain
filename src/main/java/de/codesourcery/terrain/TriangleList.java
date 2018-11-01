@@ -181,7 +181,7 @@ public class TriangleList
         toOutline( bool, data );
         print( bool, size);
         final FloatArray array = new FloatArray();
-        outlineToVertices( bool,array,tileSize,data );
+        outlineToVertices( bool,array,data );
         System.out.println("Array size: "+array.size);
         Arrays.fill(bool,false);
         final float xOrigin = -tileSize*(data.size/2f);
