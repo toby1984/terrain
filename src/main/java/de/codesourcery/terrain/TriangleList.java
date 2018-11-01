@@ -3,12 +3,15 @@ package de.codesourcery.terrain;
 import com.badlogic.gdx.math.DelaunayTriangulator;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.FloatArray;
+import com.badlogic.gdx.utils.ShortArray;
 
 import java.util.Arrays;
 
 public class TriangleList
 {
     public static final int COMPONENT_CNT = 10;
+
+    private static final float HEIGHT_SCALE_FACTOR = 0.05f;
 
     // vertices
     public float[] vertices=new float[0];
@@ -168,41 +171,45 @@ public class TriangleList
         Data data = new Data(size);
         final String s =
                         "___.__\n"+
-                        "_...._\n"+
+                        "__..._\n"+
                         ".....\n"+
                         "._...\n"+
                         "___..\n";
         final boolean[] bool = toBooleanArray( s, size );
         print( bool, size);
+        System.out.println("OUTLINE:");
         toOutline( bool, data );
         print( bool, size);
         final FloatArray array = new FloatArray();
         outlineToVertices( bool,array,tileSize,data );
         System.out.println("Array size: "+array.size);
         Arrays.fill(bool,false);
-        final float xOrigin = -tileSize*data.size/2f;
-        final float zOrigin = -tileSize*data.size/2f;
+        final float xOrigin = -tileSize*(data.size/2f);
+        final float zOrigin = -tileSize*(data.size/2f);
         for ( int i = 0 ; i < array.size ; i+=2 )
         {
-            float x = array.get( i );
-            float y = array.get( i+1 );
-            final int ix = (int) ((x + xOrigin)/tileSize);
-            final int iz = (int) ((x + xOrigin)/tileSize);
+            int ix = (int) array.get( i );
+            int iz = (int) array.get( i+1 );
             bool[ ix + iz*size ] = true;
         }
         System.out.println("Polygon:");
         print(bool,size);
     }
 
-    public void setupWaterMesh(Data data, final float squareSize)
+    public void setupWaterMesh(Data data, final float tileSize)
     {
         clear();
+
+        final FloatArray pointArray = new FloatArray();
 
         final boolean[] visited =
                 new boolean[ data.size*data.size ];
 
         final boolean[] tmpVisited =
                 new boolean[ data.size*data.size ];
+
+        final DelaunayTriangulator triangulator =
+                new DelaunayTriangulator();
 
         int pointNo = 0;
         int vertexIdx = 0;
@@ -213,6 +220,9 @@ public class TriangleList
                 if ( ! visited[pointNo] &&
                         data.water[pointNo] != 0.0f)
                 {
+                    final float y = HEIGHT_SCALE_FACTOR * data.height[pointNo] +
+                            HEIGHT_SCALE_FACTOR * data.water[pointNo];
+
                     // we found water,try to expand area as much as possible
                     Arrays.fill(tmpVisited,false);
                     floodFill(ix,iz,tmpVisited,data);
@@ -237,6 +247,35 @@ public class TriangleList
                     // TODO: Tesselate tmpVisited[] array into triangles
                     // TODO: Additional - merge adjacent triangles where all vertices
                     // TODO: have approx. the same Y coordinate
+                    outlineToVertices( tmpVisited,pointArray,data );
+                    if ( pointArray.size > 2 )
+                    {
+                        final ShortArray shortArray = triangulator.computeTriangles( pointArray, false );
+                        if ( shortArray.size >= 3  ) // got at least one triangle
+                        {
+                            final float xOrigin = -tileSize*data.size/2f;
+                            final float zOrigin = -tileSize*data.size/2f;
+
+                            for ( int i = 0, len = shortArray.size ; i < len ; i+=3 )
+                            {
+                                final int p0Idx = (int) shortArray.get(i);
+                                float p0X = xOrigin + pointArray.get(p0Idx) * tileSize;
+                                float p0Z = zOrigin + pointArray.get(p0Idx+1) * tileSize;
+                                addVertex( p0X, p0Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+
+                                final int p1Idx = (int) shortArray.get(i+1);
+                                float p1X = xOrigin + pointArray.get(p1Idx) * tileSize;
+                                float p1Z = zOrigin + pointArray.get(p1Idx+1) * tileSize;
+                                addVertex( p1X, p1Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+
+                                final int p2Idx = (int) shortArray.get(i+2);
+                                float p2X = xOrigin + pointArray.get(p2Idx) * tileSize;
+                                float p2Z = zOrigin + pointArray.get(p2Idx+1) * tileSize;
+                                addVertex( p2X, p2Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+                                addTriangle( i,i+1,i+2 );
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -259,97 +298,138 @@ public class TriangleList
         }
     }
 
-    private static void outlineToVertices(boolean[] outline,FloatArray array,float tileSize,Data data)
+    private static void outlineToVertices(boolean[] outline,FloatArray array,Data data)
     {
-        final float xOrigin = -tileSize*data.size/2;
-        final float zOrigin = -tileSize*data.size/2;
+        array.clear();
 
+        // sanity check that each row has at least 2 points
+        // except for maybe the very first and very last line
         int max = data.size;
+        final int[] pointsPerRow = new int[ max ];
+        for ( int iz = 0 ; iz < max ; iz++)
+        {
+            int pointCount = 0;
+            for ( int ix = 0 ; ix < max ; ix++ ) {
+                if ( outline[ix + iz*max] ) {
+                    pointCount++;
+                }
+            }
+            pointsPerRow[iz] = pointCount;
+        }
+        boolean gotStart=false;
+        boolean gotEnd=false;
+        for ( int i = 0 ; i < max ; i++ ) {
+            if ( pointsPerRow[i] > 0 )
+            {
+                if ( gotEnd ) {
+                    throw new RuntimeException("Illegal outline, has disconnected points ?");
+                }
+                if ( ! gotStart ) {
+                    gotStart = true;
+                    continue;
+                }
+                if ( pointsPerRow[i] == 1 ) {
+                    // only top or bottom row may have only one point
+                    gotEnd = true;
+                }
+            } else {
+                gotEnd = true;
+            }
+        }
+
         int iz = 0;
-        // find first point on outline
+        // find first,left-most point on outline
         int firstX = -1;
-        int firstZ = -1;
-        for ( ; iz < max-1 ; iz++ )
+        for ( ; iz < max ; iz++ )
         {
             firstX = findFirstPointFromLeft( outline, iz, data );
             if ( firstX != -1 )
             {
-                firstZ = iz;
+                array.add( firstX , iz );
                 break;
             }
         }
         if ( firstX == -1 )
         {
-            return; // empty outline
+            return; // we found no point at all -> empty outline
         }
         // find next left-most point
+        int previousX = firstX;
+        int previousZ = iz;
         iz++;
-        int secondX;
         int dx = Integer.MAX_VALUE;
 loop:
-        for ( ; iz < max-1 ; iz++ )
+        for ( int tmpX=0 ; iz < max ; iz++ )
         {
-            secondX = findFirstPointFromLeft( outline, iz, data );
-            if ( secondX != -1 )
+            tmpX = findFirstPointFromLeft( outline, iz, data );
+            if ( tmpX != -1 )
             {
-                final int delta = secondX - firstX;
+                final int delta = previousX - tmpX;
                 if ( dx == Integer.MAX_VALUE || delta == dx )
                 {
+                    previousX = tmpX;
+                    previousZ = iz;
                     dx = delta;
                     continue;
                 }
-                array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
-                array.add( xOrigin + secondX * tileSize, zOrigin + iz * tileSize);
+                array.add( previousX, previousZ);
+                array.add( tmpX, iz);
                 dx = delta;
-                firstX = secondX;
-                firstZ = iz;
+                previousX = tmpX;
+                previousZ = iz;
                 continue;
             }
-            array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+            array.add( previousX, previousZ);
             break;
         }
 
-        iz--;
         // now go up and look for the right-most points
+        iz--;
         firstX = -1;
-        firstZ = -1;
         for ( ; iz >= 0 ; iz-- )
         {
             firstX = findFirstPointFromRight( outline, iz, data );
             if ( firstX != -1 )
             {
-                firstZ = iz;
+                array.add( firstX, iz );
                 break;
             }
         }
         if ( firstX == -1 )
         {
-            return; // empty outline
+            if ( array.size < 3 ) {
+                array.clear();
+            }
+            return; // invalid/empty outline
         }
 
-        // find next left-most point
+        // find next right-most point
+        previousX = firstX;
+        previousZ = iz;
         iz--;
         dx = Integer.MAX_VALUE;
 loop:
-        for ( ; iz >= 0 ; iz--)
+        for ( int tmpX = 0 ; iz >= 0 ; iz--)
         {
-            secondX = findFirstPointFromLeft( outline, iz, data );
-            if ( secondX != -1 )
+            tmpX = findFirstPointFromRight( outline, iz, data );
+            if ( tmpX != -1 )
             {
-                final int delta = secondX - firstX;
+                final int delta = previousX - tmpX;
                 if ( dx == Integer.MAX_VALUE || delta == dx )
                 {
                     dx = delta;
+                    previousX = tmpX;
+                    previousZ = iz;
                     continue;
                 }
-                array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
-                array.add( xOrigin + secondX * tileSize, zOrigin + iz * tileSize);
+                array.add( previousX, previousZ);
+                array.add( tmpX, iz);
                 dx = delta;
-                firstX = secondX;
-                firstZ = iz;
+                previousX = tmpX;
+                previousZ = iz;
                 continue;
             }
-            array.add( xOrigin + firstX * tileSize, zOrigin + firstZ * tileSize);
+            array.add( previousX, previousZ);
             break;
         }
     }
@@ -369,9 +449,10 @@ loop:
     private static int findFirstPointFromRight(boolean[] outline,int iz,Data data)
     {
         int max=data.size;
-        int ptr = (iz+1)*max-1;
+        int ptr = iz*max + max -1 ;
         for ( int ix = max-1 ; ix >= 0; ix--,ptr-- ) {
             if ( outline[ptr] ) {
+                System.out.println("right-most @ "+ix);
                 return ix;
             }
         }
@@ -458,7 +539,7 @@ loop:
             {
                 final float height = heightMap[heightMapPtr++];
                 vertexArray[vertexPtr  ] = x;
-                vertexArray[vertexPtr+1] = 0.05f*height;
+                vertexArray[vertexPtr+1] = HEIGHT_SCALE_FACTOR*height;
 //                vertexArray[vertexPtr+1] = (ix%2 == 0 || iz%2 == 0 ) ? 10:0;
                 vertexArray[vertexPtr+2] = z;
                 // normals: index 3..5
