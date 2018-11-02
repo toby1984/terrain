@@ -55,23 +55,22 @@ public class Data
     private final class RandomGen
     {
         public final Random rnd;
-        private final int range;
+        private float range;
 
-        private RandomGen(long seed,int range)
+        private RandomGen(long seed,float range)
         {
             this.rnd = new Random(seed);
             this.range = range;
         }
 
-        private float rndValue()
+        public void setRange(float range)
         {
-            return rndValue(1.0f);
+            this.range = range;
         }
 
-        private float rndValue(float scale)
+        private float rndValue()
         {
-            final float value = rnd.nextFloat()*range;
-            return (scale*value);
+            return -range + 2 * range*rnd.nextFloat();
         }
     }
 
@@ -157,28 +156,67 @@ public class Data
         return this.water[y*size+x];
     }
 
-    public Data initHeights(long seed,float startScale,int range,float scaleReduction,boolean normalize)
-    {
-        dirty = true;
+    public Data initHeights(long seed, float randomRange) {
 
-        final RandomGen rnd = new RandomGen(seed,range);
+        final RandomGen rnd = new RandomGen(seed,randomRange);
 
         Arrays.fill(height,0f);
 
         final float[] tmp = new float[4];
-        for ( int i = 0 ; i < tmp.length ; i++ ) {
-            tmp[i] = rnd.rndValue()*range;
+        for ( int i = 0 ; i < tmp.length ; i++ )
+        {
+            tmp[i] = 255*rnd.rnd.nextFloat();
         }
         fastSetHeight(0,0, tmp[0] );
         fastSetHeight(size-1,0, tmp[1] );
         fastSetHeight(0,size-1, tmp[2] );
         fastSetHeight(size-1,size-1, tmp[3] );
 
-        int stepSize = size;
-        float scale = startScale;
+        float range = randomRange;
 
-        float min = Float.MAX_VALUE;
-        float max = Float.MIN_VALUE;
+        for ( int i = 1 ; i < 8 ; i++ )
+        {
+            rnd.setRange( range );
+            mdp(rnd);
+            range /= 2.0f;
+        }
+
+        // normalize
+        float min = 10000000;
+        float max = -10000000;
+        for ( int i =0, len= size*size ; i < len; i++) {
+            float v = height[i];
+            if ( v < min ) {
+                min = v;
+            }
+            if ( v > max ) {
+                max = v;
+            }
+        }
+        float scale = 255f/(max-min);
+        for ( int i =0, len= size*size ; i < len; i++)
+        {
+            float v = height[i];
+            height[i] = (v-min)*scale;
+        }
+        return this;
+    }
+
+    private static float clamp(float v) {
+        if ( v < 0 ) {
+            return 0;
+        }
+        if ( v > 255 ) {
+            return 255;
+        }
+        return v;
+    }
+
+    private Data mdp(RandomGen rnd)
+    {
+        dirty = true;
+
+        int stepSize = size;
 
         while (stepSize >=2)
         {
@@ -199,12 +237,13 @@ public class Data
                     final float topRight = height( x + sm1, y );
                     final float bottomLeft = height( x, y + sm1 );
                     final float bottomRight = height( x + sm1, y + sm1 );
-                    final float centerValue = rnd.rndValue(scale) + ( topLeft + topRight + bottomLeft + bottomRight) / 4;
+                    final float centerValue =
+                    clamp(
+                            rnd.rndValue() + ( topLeft + topRight + bottomLeft + bottomRight) / 4
+                    );
                     final int cx = x + stepSize/2;
                     final int cy = y + stepSize/2;
                     fastSetHeight(cx, cy, centerValue);
-                    max = Math.max( max , centerValue );
-                    min = Math.min( min, centerValue );
                 }
             }
 
@@ -236,38 +275,25 @@ public class Data
 
                     float newValue;
                     // top-center
-                    newValue = rnd.rndValue( scale ) + (topLeft + topRight + topCenter + center)/4;
+                    newValue = clamp( rnd.rndValue() + (topLeft + topRight + topCenter + center)/4 );
                     fastSetHeight( cx, y, newValue );
-                    min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // bottom-center
-                    newValue = rnd.rndValue( scale ) + (bottomLeft + bottomRight + bottomCenter + center) / 4;
+                    newValue = clamp( rnd.rndValue() + (bottomLeft + bottomRight + bottomCenter + center) / 4 );
                     fastSetHeight( cx,y+sm1, newValue );
-                    min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // left-center
-                    newValue = rnd.rndValue( scale ) + (topLeft + bottomLeft + leftCenter + center)/4;
+                    newValue = clamp( rnd.rndValue() + (topLeft + bottomLeft + leftCenter + center)/4 );
                     fastSetHeight( x, cy, newValue );
-                    min = Math.min(min,newValue); max = Math.max(max,newValue);
 
                     // right-center
-                    newValue = rnd.rndValue(scale) + (topRight+bottomRight+rightCenter + center)/4;
+                    newValue = clamp( rnd.rndValue() + (topRight+bottomRight+rightCenter + center)/4);
                     fastSetHeight( x+sm1,cy,newValue );
-                    min = Math.min(min,newValue); max = Math.max(max,newValue);
                 }
             }
 
             // half step size
-            scale = scale*scaleReduction;
             stepSize >>>= 1;
-        }
-
-        if ( normalize ) {
-            float factor = 255f/(max-min);
-            for ( int i = 0 ; i < size*size ; i++ ) {
-                float newValue = (height[i]-min)*factor;
-                height[i] = newValue;
-            }
         }
         return this;
     }

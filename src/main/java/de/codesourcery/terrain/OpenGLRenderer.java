@@ -21,12 +21,16 @@ import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.Vector3;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * See: http://blog.xoppa.com/basic-3d-using-libgdx-2/
  * @author Xoppa
  */
 public class OpenGLRenderer implements ApplicationListener
 {
+    public static final boolean RENDER_WATER =false;
     public Environment environment;
     public final PerspectiveCamera camera;
     public FirstPersonCameraController camController;
@@ -34,14 +38,30 @@ public class OpenGLRenderer implements ApplicationListener
 
     private final Object MODEL_LOCK = new Object();
 
-    // @GuardedBy( MODEL_LOCK )
-    public Model meshModel;
+    private static final class ModelAndInstance
+    {
+        public final Model model;
+        public final ModelInstance modelInstance;
+
+        private ModelAndInstance(Model model, ModelInstance instance)
+        {
+            this.model = model;
+            this.modelInstance = instance;
+        }
+
+        public void dispose() {
+            this.model.dispose();
+        }
+    }
 
     // @GuardedBy( MODEL_LOCK )
-    public ModelInstance modelInstance;
+    private final List<ModelAndInstance> items =
+            new ArrayList<>();
 
     // @GuardedBy( MODEL_LOCK )
-    private final TriangleList list = new TriangleList();
+    private final TriangleList heightMapMesh = new TriangleList();
+
+    private final TriangleList waterMesh = new TriangleList();
 
     // @GuardedBy( MODEL_LOCK )
     private Data data;
@@ -88,12 +108,12 @@ public class OpenGLRenderer implements ApplicationListener
 
         modelBatch = new ModelBatch();
 
-        ModelBuilder modelBuilder = new ModelBuilder();
+        final ModelBuilder modelBuilder = new ModelBuilder();
         final Material material = new Material( ColorAttribute.createDiffuse( Color.GREEN ) );
-        meshModel = modelBuilder.createBox(5f, 5f, 5f,
-                material,
-                Usage.Position | Usage.Normal);
-        modelInstance = new ModelInstance( meshModel );
+        final Model meshModel = modelBuilder.createBox(5f, 5f, 5f,
+                material, Usage.Position | Usage.Normal);
+        final ModelInstance modelInstance = new ModelInstance( meshModel );
+        this.items.add( new ModelAndInstance( meshModel, modelInstance ) );
     }
 
     @Override
@@ -111,12 +131,16 @@ public class OpenGLRenderer implements ApplicationListener
         modelBatch.begin( camera );
         synchronized(MODEL_LOCK)
         {
-            if ( modelInstance == null || dataChanged || data.dirty )
+            if ( items.isEmpty() || dataChanged || data.dirty )
             {
                 setupModel();
                 dataChanged = false;
             }
-            modelBatch.render( modelInstance, environment );
+            for (int i = 0, itemsSize = items.size(); i < itemsSize; i++)
+            {
+                final ModelAndInstance x = items.get( i );
+                modelBatch.render( x.modelInstance , environment );
+            }
         }
         modelBatch.end();
     }
@@ -125,15 +149,10 @@ public class OpenGLRenderer implements ApplicationListener
     {
         System.out.println("GL renderer rebuilds mesh");
 
-        list.clear();
-//        list.setToCube( 5f );
-        list.setupHeightMesh( data, 1f );
-        list.compact();
-
-        if ( meshModel != null )
+        if ( ! items.isEmpty() )
         {
-            meshModel.dispose();
-            meshModel = null;
+            items.forEach(  x -> x.dispose()  );
+            items.clear();
         }
 
         final ModelBuilder modelBuilder = new ModelBuilder();
@@ -143,12 +162,25 @@ public class OpenGLRenderer implements ApplicationListener
         VertexAttribute attr2 = VertexAttribute.Normal();
         VertexAttribute attr3 = VertexAttribute.ColorUnpacked();
         VertexAttributes attrs = new VertexAttributes( attr1,attr2,attr3 );
-        final MeshPartBuilder part1 = modelBuilder.part( "part1",
-                GL20.GL_TRIANGLES, attrs, material );
-        part1.addMesh( list.vertices, list.indices );
+        final MeshPartBuilder part1 = modelBuilder.part( "part1", GL20.GL_TRIANGLES, attrs, material );
 
-        this.meshModel = modelBuilder.end();
-        this.modelInstance = new ModelInstance( this.meshModel );
+        heightMapMesh.clear();
+//        list.setToCube( 5f );
+        heightMapMesh.setupHeightMesh( data, 1f, Main.TERRAIN_GRADIENT );
+        heightMapMesh.compact();
+        part1.addMesh( heightMapMesh.vertices, heightMapMesh.indices );
+
+        if ( RENDER_WATER )
+        {
+            waterMesh.clear();
+            waterMesh.setupWaterMesh( data, 1f );
+            waterMesh.compact();
+            part1.addMesh( waterMesh.vertices, waterMesh.indices );
+        }
+
+        final Model model = modelBuilder.end();
+        final ModelInstance instance = new ModelInstance( model );
+        items.add( new ModelAndInstance( model,instance ) );
     }
 
     @Override
@@ -157,8 +189,7 @@ public class OpenGLRenderer implements ApplicationListener
         synchronized( MODEL_LOCK )
         {
             modelBatch.dispose();
-            meshModel.dispose();
-            meshModel = null;
+            items.forEach( x -> x.dispose() );
             modelBatch = null;
         }
     }

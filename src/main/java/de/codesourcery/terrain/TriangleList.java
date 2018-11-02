@@ -9,6 +9,9 @@ import java.util.Arrays;
 
 public class TriangleList
 {
+    // position (x3)
+    // normal (x3)
+    // color unpacked (x4)
     public static final int COMPONENT_CNT = 10;
 
     private static final float HEIGHT_SCALE_FACTOR = 0.05f;
@@ -59,7 +62,7 @@ public class TriangleList
         return vertexNo;
     }
 
-    public void addVertex(float x, float y, float z)
+    public void addVertex(float x, float y, float z,int color)
     {
         if ( vertexPtr == this.vertices.length )
         {
@@ -71,7 +74,18 @@ public class TriangleList
         this.vertices[idx] = x;
         this.vertices[idx+1] = y;
         this.vertices[idx+2] = z;
+        // next 3 elements are normal coordinates
+        this.vertices[idx+6] = ((color>>16) & 0xff)/255f; // r
+        this.vertices[idx+7] = ((color>> 8) & 0xff)/255f; // g
+        this.vertices[idx+8] = ((color    ) & 0xff)/255f; // b
+        this.vertices[idx+9] = ((color>>24) & 0xff)/255f; // a
+
         vertexPtr += COMPONENT_CNT;
+    }
+
+    public void addVertex(float x, float y, float z)
+    {
+        addVertex(x,y,z,0xffff0000);
     }
 
     public void addTriangle(int p0,int p1,int p2)
@@ -196,26 +210,26 @@ public class TriangleList
         print(bool,size);
     }
 
-    public void setupWaterMesh(Data data, final float tileSize)
+    public void setupWaterMesh(Data data,
+                               float tileSize)
     {
         clear();
 
+        final int size = data.size;
+
         final FloatArray pointArray = new FloatArray();
 
-        final boolean[] visited =
-                new boolean[ data.size*data.size ];
+        final boolean[] visited = new boolean[ size*size ];
 
-        final boolean[] tmpVisited =
-                new boolean[ data.size*data.size ];
+        final boolean[] tmpVisited = new boolean[ size*size ];
 
-        final DelaunayTriangulator triangulator =
-                new DelaunayTriangulator();
+        final DelaunayTriangulator triangulator = new DelaunayTriangulator();
 
         int pointNo = 0;
         int vertexIdx = 0;
-        for (int iz = 0 ; iz < data.size ; iz++)
+        for (int iz = 0 ; iz < size; iz++)
         {
-            for (int ix = 0 ; ix < data.size ; ix++,pointNo++,vertexIdx += COMPONENT_CNT)
+            for (int ix = 0 ; ix < size ; ix++,pointNo++,vertexIdx += COMPONENT_CNT)
             {
                 if ( ! visited[pointNo] &&
                         data.water[pointNo] != 0.0f)
@@ -227,9 +241,6 @@ public class TriangleList
                     Arrays.fill(tmpVisited,false);
                     floodFill(ix,iz,tmpVisited,data);
 
-                    System.out.println("AFTER FLOOD-FILL:");
-                    System.out.println("AFTER FLOOD-FILL:");
-                    print(tmpVisited,data.size);
                     // merge all visited cells
                     // into visited[] array
                     for ( int i = 0,len=data.size*data.size;i<len;i++)
@@ -241,14 +252,9 @@ public class TriangleList
 
                     // now turn expanded area into outline
                     toOutline(tmpVisited,data);
-                    System.out.println("AFTER OUTLINE DETECTION:");
-                    print(tmpVisited,data.size);
 
-                    // TODO: Tesselate tmpVisited[] array into triangles
-                    // TODO: Additional - merge adjacent triangles where all vertices
-                    // TODO: have approx. the same Y coordinate
-                    outlineToVertices( tmpVisited,pointArray,data );
-                    if ( pointArray.size > 2 )
+                    // Tesselate tmpVisited[] array into triangles
+                    if ( outlineToVertices( tmpVisited,pointArray,data ) && pointArray.size > 2 )
                     {
                         final ShortArray shortArray = triangulator.computeTriangles( pointArray, false );
                         if ( shortArray.size >= 3  ) // got at least one triangle
@@ -261,17 +267,17 @@ public class TriangleList
                                 final int p0Idx = (int) shortArray.get(i);
                                 float p0X = xOrigin + pointArray.get(p0Idx) * tileSize;
                                 float p0Z = zOrigin + pointArray.get(p0Idx+1) * tileSize;
-                                addVertex( p0X, p0Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+                                addVertex( p0X, p0Z, y, 0x80000080 ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
 
                                 final int p1Idx = (int) shortArray.get(i+1);
                                 float p1X = xOrigin + pointArray.get(p1Idx) * tileSize;
                                 float p1Z = zOrigin + pointArray.get(p1Idx+1) * tileSize;
-                                addVertex( p1X, p1Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+                                addVertex( p1X, p1Z, y, 0x80000080 ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
 
                                 final int p2Idx = (int) shortArray.get(i+2);
                                 float p2X = xOrigin + pointArray.get(p2Idx) * tileSize;
                                 float p2Z = zOrigin + pointArray.get(p2Idx+1) * tileSize;
-                                addVertex( p2X, p2Z, y ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
+                                addVertex( p2X, p2Z, y, 0x80000080 ); // TODO: Careful - assumption here is that all 3 points are in one plane (=water is flag)
                                 addTriangle( i,i+1,i+2 );
                             }
                         }
@@ -298,7 +304,7 @@ public class TriangleList
         }
     }
 
-    private static void outlineToVertices(boolean[] outline,FloatArray array,Data data)
+    private static boolean outlineToVertices(boolean[] outline,FloatArray array,Data data)
     {
         array.clear();
 
@@ -322,7 +328,9 @@ public class TriangleList
             if ( pointsPerRow[i] > 0 )
             {
                 if ( gotEnd ) {
-                    throw new RuntimeException("Illegal outline, has disconnected points ?");
+//                    throw new RuntimeException("Illegal outline, has disconnected points ?");
+                    System.err.println("Illegal outline, has disconnected points ?");
+                    return false;
                 }
                 if ( ! gotStart ) {
                     gotStart = true;
@@ -351,7 +359,7 @@ public class TriangleList
         }
         if ( firstX == -1 )
         {
-            return; // we found no point at all -> empty outline
+            return true; // we found no point at all -> empty outline
         }
         // find next left-most point
         int previousX = firstX;
@@ -400,7 +408,7 @@ loop:
             if ( array.size < 3 ) {
                 array.clear();
             }
-            return; // invalid/empty outline
+            return false; // invalid/empty outline
         }
 
         // find next right-most point
@@ -432,6 +440,7 @@ loop:
             array.add( previousX, previousZ);
             break;
         }
+        return true;
     }
 
     private static int findFirstPointFromLeft(boolean[] outline,int iz,Data data)
@@ -510,7 +519,7 @@ loop:
     }
 
 
-    public void setupHeightMesh(Data data, final float squareSize)
+    public void setupHeightMesh(Data data, float squareSize,int[] colorGradient)
     {
         clear();
 
@@ -523,6 +532,18 @@ loop:
 
         // setup vertices
         final int size = data.size;
+        Float max = -1000000f;
+        Float min =  1000000f;
+        for ( int i = 0 ; i < size ; i++ ) {
+            float h = data.height[i];
+            if ( h > max ) {
+                max = h;
+            }
+            if ( h < min ) {
+                min = h;
+            }
+        }
+        final float gradHeightScale = (max-min)/(colorGradient.length-1);
         final float xStart = -((size/2) * squareSize);
         final float zStart = -((size/2) * squareSize);
 
@@ -538,17 +559,18 @@ loop:
             for ( int ix = 0; ix < size; x+=squareSize,ix++)
             {
                 final float height = heightMap[heightMapPtr++];
+                final int color = colorGradient[ Math.max(0,(int) ((height - min)*gradHeightScale)) ];
+
                 vertexArray[vertexPtr  ] = x;
                 vertexArray[vertexPtr+1] = HEIGHT_SCALE_FACTOR*height;
 //                vertexArray[vertexPtr+1] = (ix%2 == 0 || iz%2 == 0 ) ? 10:0;
                 vertexArray[vertexPtr+2] = z;
                 // normals: index 3..5
                 // color unpacked
-                vertexArray[vertexPtr+6] = 0;
-                vertexArray[vertexPtr+7] = 1;
-                vertexArray[vertexPtr+8] = 0;
-                vertexArray[vertexPtr+9] = 1; // a
-
+                vertexArray[vertexPtr+6] = ((color>>16) & 0xff)/255f; // r
+                vertexArray[vertexPtr+7] = ((color>> 8) & 0xff)/255f; // g
+                vertexArray[vertexPtr+8] = ((color    ) & 0xff)/255f; // b
+                vertexArray[vertexPtr+9] = ((color>>24) & 0xff)/255f; // a
                 vertexPtr += COMPONENT_CNT;
             }
         }
@@ -712,7 +734,6 @@ loop:
         u.set(left ).sub(base);
         v.set(right).sub(base);
         n.set(u).crs(v).nor();
-        System.out.println( v+ " x "+u+" => normal: "+n);
         return n;
     }
 

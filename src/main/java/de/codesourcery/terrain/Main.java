@@ -19,20 +19,15 @@ public class Main extends JFrame
     private static final File CONFIG_FILE = new File(".terraincfg");
 
     private static final boolean COLORIZE = false;
-    private static final boolean NORMALIZE = true;
 
     private static final float FPS = 4;
 
     private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
-    private static final float START_SCALE = 1f;
+    private static final int RND_RANGE = 200;
 
-    private static final float SCALE_REDUCE = 0.8f;
-
-    private static final int RND_RANGE = 100;
-
-    private static final int INITAL_SIZE = 257;
+    private static final int INITAL_SIZE = 513;
 
     private static final int FLOW_STEPS = 10;
 
@@ -46,7 +41,7 @@ public class Main extends JFrame
 
     private final Point tmp = new Point();
 
-    private static final int[] WATER_GRADIENT = new int[256];
+    public static final int[] WATER_GRADIENT = new int[256];
 
     static
     {
@@ -70,9 +65,18 @@ public class Main extends JFrame
     private static Data generateTerrain(long seed, Data data)
     {
         data.clearWater();
-        data.initHeights( seed, START_SCALE, RND_RANGE, SCALE_REDUCE, NORMALIZE );
+        data.initHeights( seed, RND_RANGE );
         return data;
     }
+
+    public static final int[] TERRAIN_GRADIENT =
+            new GradientBuilder()
+            .addColor( Color.BLUE, 0 )
+            .addColor( Color.GREEN, 0.4f )
+            .addColor( new Color( 182, 22, 0 ), 0.5f )
+            .addColor( Color.GRAY, 0.8f )
+            .addColor( Color.WHITE, 1.0f )
+            .buildGradient( 256 );
 
     private final class MyPanel extends JPanel
     {
@@ -83,14 +87,6 @@ public class Main extends JFrame
         private boolean render2D=true;
 
         private Point highlight = null;
-
-        private final int[] gradient = new GradientBuilder()
-                .addColor( Color.BLUE, 0 )
-                .addColor( Color.GREEN, 0.4f )
-                .addColor( new Color( 182, 22, 0 ), 0.5f )
-                .addColor( Color.GRAY, 0.8f )
-                .addColor( Color.WHITE, 1.0f )
-                .buildGradient( 256 );
 
         public MyPanel()
         {
@@ -370,8 +366,8 @@ public class Main extends JFrame
 
         private void render2D(Graphics g)
         {
-            float minWater = Float.MAX_VALUE;
-            float maxWater = Float.MIN_VALUE;
+            float minWater = 10000000f;
+            float maxWater = -10000000f;
             final BufferedImage image = image( data.size, data.size );
             for (int x = 0; x < data.size; x++)
             {
@@ -388,7 +384,7 @@ public class Main extends JFrame
                     final int color;
                     if ( COLORIZE )
                     {
-                        color = gradient[v % gradient.length];
+                        color = TERRAIN_GRADIENT[v % TERRAIN_GRADIENT.length];
                     }
                     else
                     {
@@ -435,7 +431,7 @@ public class Main extends JFrame
                 {
                     int x1 = i * 2;
                     int y1 = 10;
-                    g.setColor( new Color( gradient[i] ) );
+                    g.setColor( new Color( TERRAIN_GRADIENT[i] ) );
                     g.fillRect( x1, y1, 2, 10 );
                 }
             }
