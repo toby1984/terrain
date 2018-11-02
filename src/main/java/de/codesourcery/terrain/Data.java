@@ -1,5 +1,7 @@
 package de.codesourcery.terrain;
 
+import com.badlogic.gdx.utils.IntArray;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,11 +14,12 @@ public class Data
     public static final float EPSILON = 0.0001f;
     public final float[] height;
     public final float[] water;
+    private final int[][] offsets;
     public final int size;
 
     public boolean dirty = true;
 
-    private final PointList points = new PointList();
+    private final IntArray points = new IntArray();
 
     public Data(int size)
     {
@@ -24,6 +27,58 @@ public class Data
         this.height = new float[size*size];
         this.water = new float[size*size];
         this.dirty = true;
+
+        /* Setup tables with relative
+         * array offsets for neighbouring
+         * cells based on x/y coordinates
+         * of the center cell.
+         *
+         * +-+---------------------+-+
+         * |1|          2          |3|
+         * +-+---------------------+-+
+         * | |                     | |
+         * | |                     | |
+         * |8|                     |4|
+         * | |                     | |
+         * +-+---------------------+-+
+         * |7|           6         |5|
+         * +-----------------------+-+
+         */
+        this.offsets = new int[9][];
+        this.offsets[0] = new int[] {1,size+1,size};
+        this.offsets[1] = new int[] {-1,1,size-1,size,size+1};
+        this.offsets[2] = new int[] {-1,size-1,size};
+        this.offsets[3] = new int[] {-size-1,-size,-1,size-1,size};
+        this.offsets[4] = new int[] {-size-1,-size,-1};
+        this.offsets[5] = new int[] {-size-1,-size,-size+1,-1,1};
+        this.offsets[6] = new int[] {-size,-size+1,1};
+        this.offsets[7] = new int[] {-size,-size+1,1,size+1,size};
+        this.offsets[8] = new int[] {-size-1,-size,-size+1,-1,1,size-1,size,size+1};
+    }
+
+    private int[] getNeighbourOffsets(int x,int y) {
+        if ( x == 0 )
+        {
+            // x == 0
+            if ( y == 0 ) { return offsets[0]; }
+            if ( y == size-1 ) { return offsets[6]; }
+            return offsets[7];
+        }
+        if ( x == size-1 )
+        {
+            // x == size-1
+            if ( y == 0 ) { return offsets[2]; }
+            if ( y == size-1 ) { return offsets[4]; }
+            return offsets[3];
+        }
+        // x > 0 && x < size-1
+        if ( y == 0 ) {
+            return offsets[1];
+        }
+        if ( y < size-1 ) {
+            return offsets[8];
+        }
+        return offsets[5];
     }
 
     public void save(OutputStream out) throws IOException {
@@ -84,63 +139,52 @@ public class Data
         dirty = true;
     }
 
-    private float trueHeight(int x,int y) {
-        return height(x,y)+water(x,y);
-    }
-
     public void flow() {
 
         dirty = true;
 
-        for ( int x = 0 ; x < size ; x++ )
+        int ptr = 0;
+        for (int y = 0; y < size; y++)
         {
-            for (int y = 0; y < size; y++)
+            for ( int x = 0 ; x < size ; x++,ptr++ )
             {
-                final float currentWater = water(x,y);
+                final float currentWater = this.water[ptr];
                 if ( currentWater == 0 ) {
                     continue;
                 }
                 points.clear();
-                final float currentHeight = trueHeight( x, y );
+                final float currentHeight = currentWater + this.height[ptr];
                 float heightSum = 0;
-                for (int gradx = -1; gradx <= 1; gradx++)
+                final int[] neighbourOffsets = getNeighbourOffsets( x,y );
+                for (int i = 0, neighbourOffsetsLength = neighbourOffsets.length;
+                     i < neighbourOffsetsLength; i++)
                 {
-                    for (int grady = -1; grady <= 1; grady++)
+                    final int offset = ptr + neighbourOffsets[i];
+                    final float otherHeight = water[offset]+height[offset];
+                    if ( otherHeight < currentHeight )
                     {
-                        if ( gradx != 0 || grady != 0 )
-                        {
-                            final int rx = x + gradx;
-                            final int ry = y + grady;
-                            if ( rx >= 0 && ry >= 0 && rx < size && ry < size )
-                            {
-                                float otherHeight = trueHeight( rx, ry );
-                                if ( otherHeight < currentHeight )
-                                {
-                                    // ok, downstream
-                                    heightSum += otherHeight;
-                                    points.add( rx, ry );
-                                }
-                            }
-                        }
+                        // ok, downstream
+                        heightSum += otherHeight;
+                        points.add( offset );
                     }
                 }
 
-                if ( points.size() > 0 )
+                if ( points.size > 0 )
                 {
-                    final float avgHeight = heightSum / points.size();
+                    final float avgHeight = heightSum / points.size;
                     final float h = currentHeight - avgHeight;
                     final float excessWater = Math.min( currentWater, h );
 
                     if ( excessWater > 0 )
                     {
-                        final float fraction = excessWater / (points.size()+1);
-                        float newValue = water(x,y) - fraction*points.size();
-                        fastSetWater(x,y, newValue < EPSILON ? 0 : newValue );
-                        points.forEach( fraction, (px,py,data) ->
-                        {
-                            final float newW = water(px,py)+data;
-                            fastSetWater(px,py,newW < EPSILON ? 0 : newW );
-                        });
+                        final float fraction = excessWater / (points.size+1);
+                        float newValue = currentWater - fraction*points.size;
+                        water[ptr] = newValue < EPSILON ? 0 : newValue;
+                        for ( int i = 0, len = points.size ; i < len ; i++ ) {
+                            final int offset = points.get( i );
+                            final float newW = this.water[offset]+fraction;
+                            this.water[offset] = newW < EPSILON ? 0 : newW;
+                        }
                     }
                 }
             }
@@ -264,9 +308,9 @@ public class Data
                     final float bottomLeft = height( x, y + sm1 );
                     final float bottomRight = height( x + sm1, y + sm1 );
                     final float centerValue =
-                    clamp(
-                            rnd.rndValue() + ( topLeft + topRight + bottomLeft + bottomRight) / 4
-                    );
+                            clamp(
+                                    rnd.rndValue() + ( topLeft + topRight + bottomLeft + bottomRight) / 4
+                            );
                     final int cx = x + stepSize/2;
                     final int cy = y + stepSize/2;
                     fastSetHeight(cx, cy, centerValue);

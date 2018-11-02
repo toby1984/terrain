@@ -29,8 +29,6 @@ public class Main extends JFrame
 
     private static final int INITAL_SIZE = 256;
 
-    private static final int FLOW_STEPS = 10;
-
     public enum Mode {WATER,HEIGHT}
 
     private File mostRecentFile;
@@ -509,10 +507,10 @@ public class Main extends JFrame
         }
 
         long t1 = System.currentTimeMillis();
-        for ( int i = 0 ; i < FLOW_STEPS ; i++)
-        {
-            data.flow();
-        }
+        data.flow();
+        data.flow();
+        data.flow();
+        data.flow();
         long t2 = System.currentTimeMillis();
         tickCnt++;
         if ( tickCnt % 60 == 0 ) {

@@ -75,7 +75,7 @@ public class OpenGLRenderer implements ApplicationListener
         camera.position.set(0f, 100f, 50f);
         camera.lookAt(0,0,0);
         camera.near = 0.1f;
-        camera.far = 300f;
+        camera.far = 1000f;
     }
 
     public void setData(Data data)
