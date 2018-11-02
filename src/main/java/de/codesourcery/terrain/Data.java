@@ -143,10 +143,11 @@ public class Data
 
         dirty = true;
 
-        int ptr = 0;
-        for (int y = 0; y < size; y++)
+        int ptr;
+        for (int y = 1; y < size-1 ; y++)
         {
-            for ( int x = 0 ; x < size ; x++,ptr++ )
+            ptr = y*size+1;
+            for ( int x = 1 ; x < size-1 ; x++,ptr++ )
             {
                 final float currentWater = this.water[ptr];
                 if ( currentWater == 0 ) {
@@ -155,9 +156,8 @@ public class Data
                 points.clear();
                 final float currentHeight = currentWater + this.height[ptr];
                 float heightSum = 0;
-                final int[] neighbourOffsets = getNeighbourOffsets( x,y );
-                for (int i = 0, neighbourOffsetsLength = neighbourOffsets.length;
-                     i < neighbourOffsetsLength; i++)
+                final int[] neighbourOffsets = offsets[8]; // getNeighbourOffsets( x,y );
+                for (int i = 0 ; i < 8 ; i++)
                 {
                     final int offset = ptr + neighbourOffsets[i];
                     final float otherHeight = water[offset]+height[offset];
