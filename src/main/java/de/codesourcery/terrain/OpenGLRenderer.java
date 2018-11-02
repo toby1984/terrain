@@ -166,14 +166,15 @@ public class OpenGLRenderer implements ApplicationListener
 
         heightMapMesh.clear();
 //        list.setToCube( 5f );
-        heightMapMesh.setupHeightMesh( data, 1f, Main.TERRAIN_GRADIENT );
+        final float tileSize = 5f;
+        heightMapMesh.setupHeightMesh( data, tileSize, Main.TERRAIN_GRADIENT );
         heightMapMesh.compact();
         part1.addMesh( heightMapMesh.vertices, heightMapMesh.indices );
 
         if ( RENDER_WATER )
         {
             waterMesh.clear();
-            waterMesh.setupWaterMesh( data, 1f );
+            waterMesh.setupWaterMesh( data, tileSize );
             waterMesh.compact();
             part1.addMesh( waterMesh.vertices, waterMesh.indices );
         }

@@ -36,8 +36,8 @@ public class Data
     {
         final int size = readInt(in);
         final Data result = new Data(size);
-        final byte[] byteArray = readByteArray(in);
-        System.arraycopy( byteArray,0,result.height,0,size*size );
+        final float[] height = readFloatArray(in);
+        System.arraycopy( height,0,result.height,0,size*size );
 
         final float[] floatArray = readFloatArray(in);
         System.arraycopy( floatArray,0,result.water,0,size*size );
@@ -174,7 +174,7 @@ public class Data
 
         float range = randomRange;
 
-        for ( int i = 1 ; i < 8 ; i++ )
+        for ( int i = 1 ; i < 4 ; i++ )
         {
             rnd.setRange( range );
             mdp(rnd);
@@ -200,6 +200,32 @@ public class Data
             height[i] = (v-min)*scale;
         }
         return this;
+    }
+
+    public void smooth() {
+
+        dirty = true;
+
+        final float[] copy = Arrays.copyOf( this.height, this.height.length );
+        for ( int iz = 1 ; iz < size-1; iz++)
+        {
+            for ( int ix = 1 ; ix < size-1; ix++) {
+                float h1 = height(ix-1,iz-1 );
+                float h2 = height( ix ,iz-1 );
+                float h3 = height(ix+ 1,iz-1 );
+
+                float h4 = height(ix-1,iz );
+                float h6 = height(ix+ 1,iz );
+
+                float h7 = height(ix-1,iz+1 );
+                float h8 = height( ix ,iz+1 );
+                float h9 = height(ix+ 1,iz+1 );
+
+                float avg = (h1+h2+h3+h4+h6+h7+h8+h9)/8f;
+                copy[ ix + iz*size ] = avg;
+            }
+        }
+        System.arraycopy( copy, 0, this.height,0, copy.length );
     }
 
     private static float clamp(float v) {

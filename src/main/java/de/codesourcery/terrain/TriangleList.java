@@ -14,7 +14,7 @@ public class TriangleList
     // color unpacked (x4)
     public static final int COMPONENT_CNT = 10;
 
-    private static final float HEIGHT_SCALE_FACTOR = 0.05f;
+    private static final float HEIGHT_SCALE_FACTOR = 0.5f;
 
     // vertices
     public float[] vertices=new float[0];

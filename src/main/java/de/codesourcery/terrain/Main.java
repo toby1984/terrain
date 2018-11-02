@@ -27,7 +27,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 513;
+    private static final int INITAL_SIZE = 256;
 
     private static final int FLOW_STEPS = 10;
 
@@ -250,6 +250,10 @@ public class Main extends JFrame
                         case 'v':
                             render2D = !render2D;
                             glFrame.changeVisibility( ! render2D, Main.this );
+                            repaint();
+                            return;
+                        case 'x':
+                            data.smooth();
                             repaint();
                             return;
                         case 'c':
