@@ -113,8 +113,8 @@ public class OpenGLRenderer implements ApplicationListener
             // note: Diamond-square algorithm requires that
             // heightmap is (Power-Of-Two + 1) but
             // OpenGL works best with Power-Of-Two textures...
-            this.heightMap = mapBeRealloc(this.heightMap,size-1,size-1);
-            this.waterMap = mapBeRealloc(this.heightMap,size-1,size-1);
+//            this.heightMap = mapBeRealloc(this.heightMap,size-1,size-1);
+//            this.waterMap = mapBeRealloc(this.heightMap,size-1,size-1);
         }
     }
 
@@ -272,13 +272,13 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             return;
         }
 
-        heightMap.uploadBuffer(GL20.GL_TEXTURE0);
-        waterMap.uploadBuffer(GL20.GL_TEXTURE1);
-
-        flowShaders.begin();
-        flowShaders.setUniformi( "heightMap", 0); // texture unit #0
-        flowShaders.setUniformi( "waterMap", 1); // texture unit #1
-        flowShaders.end();
+//        heightMap.uploadBuffer(GL20.GL_TEXTURE0);
+//        waterMap.uploadBuffer(GL20.GL_TEXTURE1);
+//
+//        flowShaders.begin();
+//        flowShaders.setUniformi( "heightMap", 0); // texture unit #0
+//        flowShaders.setUniformi( "waterMap", 1); // texture unit #1
+//        flowShaders.end();
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);

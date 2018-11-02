@@ -11,15 +11,17 @@ import java.util.Random;
 
 public class Data
 {
+    /**
+     * Any water level below this value will be clamped to zero.
+     */
     public static final float EPSILON = 0.0001f;
+
     public final float[] height;
     public final float[] water;
     private final int[][] offsets;
     public final int size;
 
     public boolean dirty = true;
-
-    private final IntArray points = new IntArray();
 
     public Data(int size)
     {
@@ -143,7 +145,19 @@ public class Data
 
         dirty = true;
 
+        // relative offsets to direct neightbours of current cell
+        final int[] relNeighbourOffsets = {-size-1,-size,-size+1,-1,1,size-1,size,size+1};
+
+        // array holding list of direct
+        // neighbours whose level (water+height) is
+        // below the current node's level (water+height)
+        // so water needs to be re-distributed there
+        final int[] neighbours = new int[8];
         int ptr;
+        // TODO: Code currently cheats and ignores the border area as
+        // TODO: we'd need to do lots of additional comparisons to detect
+        // TODO: those boundary cases (OR duplicate the loop and
+        // TODO: deal with the first/last row/column separately)
         for (int y = 1; y < size-1 ; y++)
         {
             ptr = y*size+1;
@@ -151,37 +165,38 @@ public class Data
             {
                 final float currentWater = this.water[ptr];
                 if ( currentWater == 0 ) {
+                    // no water in this cell
                     continue;
                 }
-                points.clear();
+                // true height (ground height + water height)
                 final float currentHeight = currentWater + this.height[ptr];
+                int pointCount = 0;
                 float heightSum = 0;
-                final int[] neighbourOffsets = offsets[8]; // getNeighbourOffsets( x,y );
-                for (int i = 0 ; i < 8 ; i++)
+                for (int relOffset : relNeighbourOffsets )
                 {
-                    final int offset = ptr + neighbourOffsets[i];
+                    final int offset = ptr + relOffset;
                     final float otherHeight = water[offset]+height[offset];
                     if ( otherHeight < currentHeight )
                     {
                         // ok, downstream
                         heightSum += otherHeight;
-                        points.add( offset );
+                        neighbours[pointCount++] = offset;
                     }
                 }
 
-                if ( points.size > 0 )
+                if ( pointCount > 0 )
                 {
-                    final float avgHeight = heightSum / points.size;
+                    final float avgHeight = heightSum / pointCount;
                     final float h = currentHeight - avgHeight;
-                    final float excessWater = Math.min( currentWater, h );
+                    final float excessWater = currentWater < h ? currentWater : h;
 
                     if ( excessWater > 0 )
                     {
-                        final float fraction = excessWater / (points.size+1);
-                        float newValue = currentWater - fraction*points.size;
+                        final float fraction = excessWater / (pointCount+1);
+                        final float newValue = currentWater - fraction*pointCount;
                         water[ptr] = newValue < EPSILON ? 0 : newValue;
-                        for ( int i = 0, len = points.size ; i < len ; i++ ) {
-                            final int offset = points.get( i );
+                        for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
+                            final int offset = neighbours[i];
                             final float newW = this.water[offset]+fraction;
                             this.water[offset] = newW < EPSILON ? 0 : newW;
                         }

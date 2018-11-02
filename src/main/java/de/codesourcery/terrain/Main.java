@@ -20,14 +20,15 @@ public class Main extends JFrame
 
     private static final boolean COLORIZE = false;
 
-    private static final float FPS = 4;
+    private static final float FPS = 60;
 
+    public static final boolean RENDER_OPENGL = false;
     private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 256;
+    private static final int INITAL_SIZE = 33;
 
     public enum Mode {WATER,HEIGHT}
 
@@ -354,7 +355,7 @@ public class Main extends JFrame
                 timer.start();
             }
             final long t1 = System.currentTimeMillis();
-            if ( data.dirty )
+            if ( RENDER_OPENGL && data.dirty )
             {
                 glFrame.renderer.setData( data );
                 data.dirty = false;
@@ -496,6 +497,7 @@ public class Main extends JFrame
     private final MyPanel panel = new MyPanel();
 
     private long tickCnt = 0;
+    private long sumFlowTime = 0;
 
     private boolean waterSimulationRunning = false;
 
@@ -511,10 +513,15 @@ public class Main extends JFrame
         data.flow();
         data.flow();
         data.flow();
+        data.flow();
+        data.flow();
+        data.flow();
+        data.flow();
         long t2 = System.currentTimeMillis();
         tickCnt++;
-        if ( tickCnt % 60 == 0 ) {
-            System.out.println("flow() time: "+(t2-t1)+" ms");
+        sumFlowTime += (t2-t1);
+        if ( tickCnt % 100 == 0 ) {
+            System.out.println(tickCnt+" - flow() time: "+(t2-t1)+" ms (total: "+sumFlowTime+" ms");
         }
         panel.repaint();
     });
