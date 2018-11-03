@@ -22,13 +22,13 @@ public class Main extends JFrame
 
     private static final float FPS = 60;
 
-    public static final boolean RENDER_OPENGL = false;
+    public static final boolean RENDER_OPENGL = true;
     private static final int WATER_MINHEIGHT = 1;
     private static final int WATER_AMOUNT = 10;
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 257; // MUST be Power-Of-Two + 1 !!!!
+    private static final int INITAL_SIZE = 129; // MUST be Power-Of-Two + 1 !!!!
 
     public enum Mode {WATER,HEIGHT}
 

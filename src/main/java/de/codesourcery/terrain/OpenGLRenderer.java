@@ -188,12 +188,12 @@ public class OpenGLRenderer implements ApplicationListener
     public void create()
     {
         // setup shader to calculate water propagation
-        final String vertexSrc = "";
-        final String fragmentSrc = "";
-        flowShaders = new ShaderProgram(vertexSrc,fragmentSrc);
-        if ( ! flowShaders.isCompiled() ) {
-            throw new RuntimeException("Failed to compile shader");
-        }
+//        final String vertexSrc = "";
+//        final String fragmentSrc = "";
+//        flowShaders = new ShaderProgram(vertexSrc,fragmentSrc);
+//        if ( ! flowShaders.isCompiled() ) {
+//            throw new RuntimeException("Failed to compile shader");
+//        }
 
         // setup libgdx stuff
         environment = new Environment();
