@@ -7,7 +7,7 @@ terrain erosion to get more realistic heightmap than just using Simplex/Perlin n
 I then got distracted by an interesting side-problem, creating lakes/ocean from water that follows the terrain's height gradient 
 downwards.
 
-Here's a short video that shows my water distribution algorithm in action: ![Screenshot](https://github.com/toby1984/terrain/blob/master/video.mkv?raw=true)
+Here's a short video that shows my water distribution algorithm in action: ![Video](https://github.com/toby1984/terrain/blob/master/video.mkv?raw=true)
 
 While the algorithm is straight-forward I got curious how fast I could make the implementation.
 
