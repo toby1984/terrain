@@ -1,5 +1,7 @@
 # terrain
 
+![Screenshot](https://raw.githubusercontent.com/toby1984/terrain/master/screenshot.png)
+
 This is a small toy project where I actually wanted to play around with water-based 
 terrain erosion to get more realistic heightmap than just using Simplex/Perlin noise or midpoint displacement alone. 
 I then got distracted by an interesting side-problem, creating lakes/ocean from water that follows the terrain's height gradient 
