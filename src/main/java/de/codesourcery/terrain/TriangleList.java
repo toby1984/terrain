@@ -232,10 +232,10 @@ public class TriangleList
             for (int ix = 0 ; ix < size ; ix++,pointNo++,vertexIdx += COMPONENT_CNT)
             {
                 if ( ! visited[pointNo] &&
-                        data.water[pointNo] != 0.0f)
+                        data.water(pointNo) != 0.0f)
                 {
-                    final float y = HEIGHT_SCALE_FACTOR * data.height[pointNo] +
-                            HEIGHT_SCALE_FACTOR * data.water[pointNo];
+                    final float y = HEIGHT_SCALE_FACTOR * data.height(pointNo) +
+                            HEIGHT_SCALE_FACTOR * data.water(pointNo);
 
                     // we found water,try to expand area as much as possible
                     Arrays.fill(tmpVisited,false);
@@ -509,7 +509,7 @@ loop:
                     int rx = ix+dx;
                     int rz = iz+dz;
                     int ptr = rz*data.size+rx;
-                    if ( data.water[ptr] != 0 && ! tmpVisited[ptr] )
+                    if ( data.water(ptr) != 0 && ! tmpVisited[ptr] )
                     {
                         floodFill( rx,rz,tmpVisited,data );
                     }
@@ -535,7 +535,7 @@ loop:
         Float max = -1000000f;
         Float min =  1000000f;
         for ( int i = 0 ; i < size ; i++ ) {
-            float h = data.height[i];
+            float h = data.height(i);
             if ( h > max ) {
                 max = h;
             }
@@ -550,7 +550,7 @@ loop:
         int heightMapPtr = 0;
         int vertexPtr = this.vertexPtr;
         final float[] vertexArray = this.vertices;
-        final float[] heightMap = data.height;
+        final float[] heightMap = data.height.array();
 
         int iz=0;
         for ( float z = zStart ; iz < size; z+=squareSize,iz++)

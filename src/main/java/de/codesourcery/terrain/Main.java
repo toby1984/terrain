@@ -28,7 +28,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 33;
+    private static final int INITAL_SIZE = 257; // MUST be Power-Of-Two + 1 !!!!
 
     public enum Mode {WATER,HEIGHT}
 
@@ -313,7 +313,7 @@ public class Main extends JFrame
                             data.initWater( WATER_MINHEIGHT, WATER_AMOUNT);
                             break;
                         case ' ':
-                            data.flow();
+                            data.flow(1);
                             break;
                         default:
                             System.out.println( "Generating terrain..." );
@@ -509,14 +509,7 @@ public class Main extends JFrame
         }
 
         long t1 = System.currentTimeMillis();
-        data.flow();
-        data.flow();
-        data.flow();
-        data.flow();
-        data.flow();
-        data.flow();
-        data.flow();
-        data.flow();
+        data.flow(10);
         long t2 = System.currentTimeMillis();
         tickCnt++;
         sumFlowTime += (t2-t1);
