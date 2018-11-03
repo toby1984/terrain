@@ -3,7 +3,7 @@
 ![Screenshot](https://raw.githubusercontent.com/toby1984/terrain/master/screenshot.png)
 
 This is a small Java toy/C/OpenGL project where I actually wanted to play around with water-based 
-terrain erosion to get more realistic heightmap than just using Simplex/Perlin noise or midpoint displacement alone. 
+terrain erosion to get a more realistic heightmap as by just using a noise function alone. 
 I then got distracted by an interesting side-problem, creating lakes/ocean from water that follows the terrain's height gradient 
 downwards.
 
@@ -27,3 +27,4 @@ Lessons learned so far:
 - using a FloatBuffer instead of float[] is vastly faster (I blame this on the array bounds checking but maybe this is really because FloatBuffer#set()/#get() gets compiled using intrinsics)
 - using a one-dimensional array instead of a two-dimensional one (and calculating offsets by doing y*width+x) is faster by
 quite some margin, probably because of better cache locality and less array-bounds checking. Also really convenient if you frequently need to iterate over all elements in the array.
+- Having not used OpenGL for a long time time I got quickly reminded how ugly the API is ... functions that take 10 parameters, half of them ints .... beautiful :/ 
