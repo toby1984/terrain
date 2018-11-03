@@ -6,6 +6,9 @@ This is a small Java toy/C/OpenGL project where I actually wanted to play around
 terrain erosion to get more realistic heightmap than just using Simplex/Perlin noise or midpoint displacement alone. 
 I then got distracted by an interesting side-problem, creating lakes/ocean from water that follows the terrain's height gradient 
 downwards.
+
+Here's a short video that shows my water distribution algorithm in action: ![Screenshot](https://github.com/toby1984/terrain/blob/master/video.mkv?raw=true)
+
 While the algorithm is straight-forward I got curious how fast I could make the implementation.
 
 1. Attempt: I started out with a very simple but slow Java implementation
