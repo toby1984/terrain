@@ -82,6 +82,8 @@ public class Main extends JFrame
         private BufferedImage image;
         private Graphics2D imageGfx;
         private OpenGLFrame glFrame = new OpenGLFrame();
+        private boolean hudVisible = true;
+        private boolean hideBorder = false;
 
         private boolean render2D=true;
 
@@ -130,13 +132,12 @@ public class Main extends JFrame
                                 default:
                                     throw new RuntimeException("Unhandled switch/case: "+mode);
                             }
-                            repaint();
                         }
+                        handleMove( e,true );
                     }
                 }
 
-                @Override
-                public void mouseMoved(MouseEvent e)
+                private void handleMove(MouseEvent e,boolean repaint)
                 {
                     final Point p = point( e );
                     if ( p != null )
@@ -144,7 +145,10 @@ public class Main extends JFrame
                         if ( highlight == null || ! highlight.equals(p) )
                         {
                             highlight = new Point( p );
-                            repaint();
+                            if ( repaint )
+                            {
+                                repaint();
+                            }
                         }
                     }
                     else
@@ -152,9 +156,18 @@ public class Main extends JFrame
                         if ( highlight != null )
                         {
                             highlight = null;
-                            repaint();
+                            if ( repaint )
+                            {
+                                repaint();
+                            }
                         }
                     }
+                }
+
+                @Override
+                public void mouseMoved(MouseEvent e)
+                {
+                    handleMove(e,true);
                 }
 
                 @Override
@@ -245,7 +258,8 @@ public class Main extends JFrame
                 public void keyTyped(KeyEvent e)
                 {
                     final char keyChar = e.getKeyChar();
-                    switch( keyChar ) {
+                    switch( keyChar )
+                    {
                         case 'v':
                             render2D = !render2D;
                             glFrame.changeVisibility( ! render2D, Main.this );
@@ -257,6 +271,10 @@ public class Main extends JFrame
                             return;
                         case 'c':
                             data.clear();
+                            repaint();
+                            return;
+                        case 'b':
+                            hideBorder = ! hideBorder;
                             repaint();
                             return;
                     }
@@ -315,6 +333,9 @@ public class Main extends JFrame
                         case ' ':
                             data.flow(1);
                             break;
+                        case 'h':
+                            hudVisible = ! hudVisible;
+                            break;
                         default:
                             System.out.println( "Generating terrain..." );
                             generateTerrain( System.currentTimeMillis(), data );
@@ -372,9 +393,17 @@ public class Main extends JFrame
             float minWater = 10000000f;
             float maxWater = -10000000f;
             final BufferedImage image = image( data.size, data.size );
-            for (int x = 0; x < data.size; x++)
+
+            imageGfx.setColor( Color.BLACK );
+            imageGfx.fillRect( 0,0,getWidth(),getHeight());
+
+            final int x0 = hideBorder ? 1 : 0;
+            final int y0 = hideBorder ? 1 : 0;
+            final int x1 = hideBorder ? data.size-1 : data.size;
+            final int y1 = hideBorder ? data.size-1 : data.size;
+            for (int y = y0; y < y1; y++)
             {
-                for (int y = 0; y < data.size; y++)
+                for (int x = x0; x < x1; x++)
                 {
                     final float w = data.water(x,y);
                     if ( w > 0f)
@@ -409,9 +438,9 @@ public class Main extends JFrame
                 scale = 1;
             }
             final int size = data.size;
-            for (int x = 0; x < size; x++)
+            for (int y = y0; y < y1; y++)
             {
-                for (int y = 0; y < size; y++)
+                for (int x = x0; x < x1; x++)
                 {
                     float w = data.water( x, y );
                     if ( w > 0 )
@@ -432,10 +461,10 @@ public class Main extends JFrame
             {
                 for (int i = 0; i < 256; i++)
                 {
-                    int x1 = i * 2;
-                    int y1 = 10;
+                    int xa = i * 2;
+                    int ya = 10;
                     g.setColor( new Color( TERRAIN_GRADIENT[i] ) );
-                    g.fillRect( x1, y1, 2, 10 );
+                    g.fillRect( xa, ya, 2, 10 );
                 }
             }
 
@@ -445,6 +474,9 @@ public class Main extends JFrame
 
         private void renderUI(Graphics g)
         {
+            if ( ! hudVisible ) {
+                return;
+            }
             int y = 20;
             final int fontHeight = 20;
             if ( ! render2D ) {

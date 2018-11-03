@@ -301,7 +301,7 @@ public class Data
     private static void setupSlices(int x0,int y0,int width,int height,Rectangle[] output)
     {
         final int slices = output.length;
-        int sliceWidth = width/slices;
+        int sliceWidth = Math.max(1,width/slices);
         int additionalLastSliceWidth = width - slices*sliceWidth;
 
         int x=x0;
