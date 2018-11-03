@@ -3,6 +3,7 @@ package de.codesourcery.terrain;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 
+import java.awt.Rectangle;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,6 +11,14 @@ import java.io.OutputStream;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Data
 {
@@ -18,22 +27,105 @@ public class Data
      */
     public static final float EPSILON = 0.0001f;
 
-    private static FloatMemoryPool memoryPool =
-            new FloatMemoryPool();
+    protected enum CalcMode {
+        JAVA,
+        NATIVE,
+        OPENCL
+    }
 
+    private static final CalcMode CALC_MODE = CalcMode.JAVA;
+
+
+    private static FloatMemoryPool memoryPool = new FloatMemoryPool();
+
+    private final Rectangle[] slices;
+    private final MyRunnable[] runnables;
+
+    protected final class MyRunnable implements Runnable
+    {
+        public final Rectangle area;
+        public final CyclicBarrier barrier;
+
+        public MyRunnable(Rectangle area, CyclicBarrier barrier) {
+            this.area = area;
+            this.barrier = barrier;
+        }
+
+        public void run()
+        {
+            try {
+                flow(area,size,height.array(),water.array());
+            }
+            finally
+            {
+                try
+                {
+                    barrier.await();
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private final int threadCount;
     public final FloatBuffer height;
     public final FloatBuffer water;
     private final int[][] offsets;
     public final int size;
 
-    public boolean dirty = true;
+    private final ThreadPoolExecutor threadPool;
+    private final CyclicBarrier barrier;
 
+    public boolean dirty = true;
 
     public Data(int size)
     {
         this.size = size;
-        this.height = FloatBuffer.allocate(size*size);
-        this.water = FloatBuffer.allocate(size*size);
+
+        final int elemCount = size * size;
+
+        this.height = FloatBuffer.allocate( elemCount );
+        this.water = FloatBuffer.allocate( elemCount );
+
+        final ArrayBlockingQueue workQueue =
+                new ArrayBlockingQueue(10 );
+
+        final ThreadFactory threadFactory = new ThreadFactory()
+        {
+            private final ThreadGroup tg = new ThreadGroup( Thread.currentThread().getThreadGroup(),"flow" );
+            private final AtomicInteger threadId = new AtomicInteger();
+
+            @Override
+            public Thread newThread(Runnable r)
+            {
+                final Thread t = new Thread(tg,r,"flow-"+threadId.incrementAndGet());
+                t.setDaemon( true );
+                return t;
+            }
+        };
+
+        this.threadCount = Math.max(1,Runtime.getRuntime().availableProcessors());
+        System.out.println("Using "+threadCount+" threads");
+
+        this.threadPool = new ThreadPoolExecutor( threadCount,
+                threadCount,10, TimeUnit.SECONDS,workQueue,threadFactory,
+        new ThreadPoolExecutor.CallerRunsPolicy() );
+
+        slices = new Rectangle[threadCount];
+        barrier = new CyclicBarrier(threadCount+1);
+
+        for ( int i = 0 ; i < threadCount ; i++ ) {
+            slices[i] = new Rectangle();
+        }
+        setupSlices( 1,1,size-2,size-2,slices);
+        runnables = new MyRunnable[ slices.length ];
+        for ( int i = 0 ; i < slices.length ; i++ ) {
+            runnables[i] = new MyRunnable(slices[i], barrier );
+        }
+
         this.dirty = true;
 
         /* Setup tables with relative
@@ -164,26 +256,69 @@ public class Data
         // Using Java only with FloatBuffer
         // 1000 - flow() time: 17 ms (total: 18121 ms
 
-        height.rewind();
-        water.rewind();
-        if ( count == 1 )
+        switch( CALC_MODE )
         {
-            FlowLibrary.INSTANCE.flow( size, height , water );
-        } else {
-            FlowLibrary.INSTANCE.flowRepeat( size, height , water , count);
+            case JAVA:
+                final int slicesLength = slices.length;
+                for ( int i = 0 ; i < count ; i++)
+                {
+                    barrier.reset();
+                    for (int threadNo = 0, runnablesLength = runnables.length; threadNo < runnablesLength; threadNo++)
+                    {
+                        threadPool.submit( runnables[threadNo] );
+                    }
+                    while( true )
+                    {
+                        try
+                        {
+                            barrier.await();
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                break;
+            case NATIVE:
+                height.rewind();
+                water.rewind();
+                if ( count == 1 )
+                {
+                    FlowLibrary.INSTANCE.flow( size, height , water );
+                } else {
+                    FlowLibrary.INSTANCE.flowRepeat( size, height , water , count);
+                }
+                break;
+            case OPENCL:
+                // TODO: Implement me
+                break;
         }
-
-//        for ( int i = 0 ; i < count ; i++)
-//        {
-//            flow( size, height.array(), water.array() );
-//        }
         dirty = true;
     }
 
-    private void flow(int size,float[] height,float[] water) {
+    private static void setupSlices(int x0,int y0,int width,int height,Rectangle[] output)
+    {
+        final int slices = output.length;
+        int sliceWidth = width/slices;
+        int additionalLastSliceWidth = width - slices*sliceWidth;
 
+        int x=x0;
+        int w = sliceWidth;
+        for ( int i = 0 ; i < slices ; i++, x+= sliceWidth )
+        {
+            if ( (i+1) == slices ) {
+              w += additionalLastSliceWidth;
+            }
+            output[i].setBounds( x,y0,w,height);
+        }
+    }
+
+    private void flow(Rectangle rect, int trueSize, float[] height, float[] water)
+    {
         // relative offsets to direct neightbours of current cell
-        final int[] relNeighbourOffsets = {-size-1,-size,-size+1,-1,1,size-1,size,size+1};
+        final int[] relNeighbourOffsets = {-trueSize-1,-trueSize,-trueSize+1,-1,1,trueSize-1,trueSize,trueSize+1};
 
         // array holding list of direct
         // neighbours whose level (water+height) is
@@ -195,10 +330,10 @@ public class Data
         // TODO: we'd need to do lots of additional comparisons to detect
         // TODO: those boundary cases (OR duplicate the loop and
         // TODO: deal with the first/last row/column separately)
-        for (int y = 1; y < size-1 ; y++)
+        for (int y = rect.y, ymax = rect.y + rect.height; y < ymax ; y++)
         {
-            ptr = y*size+1;
-            for ( int x = 1 ; x < size-1 ; x++,ptr++ )
+            ptr = y*trueSize+rect.x;
+            for ( int x = rect.x, xmax = rect.x + rect.width ; x < xmax ; x++,ptr++ )
             {
                 final float currentWater = water[ptr];
                 if ( currentWater == 0 ) {
