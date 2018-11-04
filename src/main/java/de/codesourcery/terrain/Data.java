@@ -33,7 +33,7 @@ public class Data
         OPENCL
     }
 
-    private static final CalcMode CALC_MODE = CalcMode.JAVA;
+    private static final CalcMode CALC_MODE = CalcMode.NATIVE;
 
 
     private static FloatMemoryPool memoryPool = new FloatMemoryPool();
@@ -259,7 +259,6 @@ public class Data
         switch( CALC_MODE )
         {
             case JAVA:
-                final int slicesLength = slices.length;
                 for ( int i = 0 ; i < count ; i++)
                 {
                     barrier.reset();
@@ -369,9 +368,10 @@ public class Data
                     final float excessWater = Math.min(currentWater,h);
 
                     final float fraction = excessWater / pointCount;
-                    final float newValue = currentWater - fraction*pointCount;
+                    final float newValue = currentWater - excessWater;
                     water[ptr] = newValue < EPSILON ? 0 : newValue;
-                    for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
+                    for ( int i = pointCount-1 ; i >= 0 ; i-- )
+                    {
                         final int offset = neighbours[i];
                         final float newW = water[offset]+fraction;
                         water[offset] = newW;
