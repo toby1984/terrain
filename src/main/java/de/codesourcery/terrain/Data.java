@@ -1,8 +1,5 @@
 package de.codesourcery.terrain;
 
-import com.sun.jna.Memory;
-import com.sun.jna.Native;
-
 import java.awt.Rectangle;
 import java.io.EOFException;
 import java.io.IOException;
@@ -12,8 +9,6 @@ import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
