@@ -104,7 +104,6 @@ public class OpenGLRenderer implements ApplicationListener
 
     public void setData(Data data)
     {
-        System.out.println("GL renderer got data");
         synchronized(MODEL_LOCK)
         {
             this.dataChanged = this.data == null || data.dirty;
@@ -302,8 +301,6 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 
     private void setupModel()
     {
-        System.out.println("GL renderer rebuilds mesh");
-
         if ( ! items.isEmpty() )
         {
             items.forEach(  x -> x.dispose()  );

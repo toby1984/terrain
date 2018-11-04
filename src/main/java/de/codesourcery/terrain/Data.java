@@ -360,17 +360,17 @@ public class Data
                 {
                     final float avgHeight = heightSum / pointCount;
                     final float h = currentHeight - avgHeight;
-                    final float excessWater = currentWater < h ? currentWater : h;
+                    final float excessWater = Math.min(currentWater,h);
 
                     if ( excessWater > 0 )
                     {
-                        final float fraction = excessWater / (pointCount+1);
+                        final float fraction = excessWater / pointCount;
                         final float newValue = currentWater - fraction*pointCount;
                         water[ptr] = newValue < EPSILON ? 0 : newValue;
                         for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
                             final int offset = neighbours[i];
                             final float newW = water[offset]+fraction;
-                            water[offset] = newW < EPSILON ? 0 : newW;
+                            water[offset] = newW;
                         }
                     }
                 }
