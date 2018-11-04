@@ -55,16 +55,13 @@ void flow(int size,float height[],float water[])
                 float h = currentHeight - avgHeight;
                 float excessWater = currentWater < h ? currentWater : h;
 
-                if ( excessWater > 0 )
-                {
-                    float fraction = excessWater / (pointCount+1);
-                    float newValue = currentWater - fraction*pointCount;
-                    water[ptr] = newValue < EPSILON ? 0 : newValue;
-                    for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
-                        int offset = neighbours[i];
-                        float newW = water[offset]+fraction;
-                        water[offset] = newW < EPSILON ? 0 : newW;
-                    }
+                float fraction = excessWater / pointCount;
+                float newValue = currentWater - fraction*pointCount;
+                water[ptr] = newValue < EPSILON ? 0 : newValue;
+                for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
+                    int offset = neighbours[i];
+                    float newW = water[offset]+fraction;
+                    water[offset] = newW;
                 }
             }
         }

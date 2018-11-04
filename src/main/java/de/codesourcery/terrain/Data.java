@@ -107,12 +107,12 @@ public class Data
             }
         };
 
-        this.threadCount = Math.max(1,Runtime.getRuntime().availableProcessors());
+        this.threadCount = Math.max(1,Runtime.getRuntime().availableProcessors()/2);
         System.out.println("Using "+threadCount+" threads");
 
         this.threadPool = new ThreadPoolExecutor( threadCount,
                 threadCount,10, TimeUnit.SECONDS,workQueue,threadFactory,
-        new ThreadPoolExecutor.CallerRunsPolicy() );
+                new ThreadPoolExecutor.CallerRunsPolicy() );
 
         slices = new Rectangle[threadCount];
         barrier = new CyclicBarrier(threadCount+1);
@@ -309,7 +309,7 @@ public class Data
         for ( int i = 0 ; i < slices ; i++, x+= sliceWidth )
         {
             if ( (i+1) == slices ) {
-              w += additionalLastSliceWidth;
+                w += additionalLastSliceWidth;
             }
             output[i].setBounds( x,y0,w,height);
         }
@@ -317,6 +317,12 @@ public class Data
 
     private void flow(Rectangle rect, int trueSize, float[] height, float[] water)
     {
+        // 1000 - flow() time: 15 ms (total: 17217 ms)
+        // 1000 - flow() time: 16 ms (total: 16102 ms)
+        // 1000 - flow() time: 14 ms (total: 15903 ms)
+        // --
+        // 1000 - flow() time: 14 ms (total: 15754 ms
+
         // relative offsets to direct neightbours of current cell
         final int[] relNeighbourOffsets = {-trueSize-1,-trueSize,-trueSize+1,-1,1,trueSize-1,trueSize,trueSize+1};
 
@@ -362,16 +368,13 @@ public class Data
                     final float h = currentHeight - avgHeight;
                     final float excessWater = Math.min(currentWater,h);
 
-                    if ( excessWater > 0 )
-                    {
-                        final float fraction = excessWater / pointCount;
-                        final float newValue = currentWater - fraction*pointCount;
-                        water[ptr] = newValue < EPSILON ? 0 : newValue;
-                        for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
-                            final int offset = neighbours[i];
-                            final float newW = water[offset]+fraction;
-                            water[offset] = newW;
-                        }
+                    final float fraction = excessWater / pointCount;
+                    final float newValue = currentWater - fraction*pointCount;
+                    water[ptr] = newValue < EPSILON ? 0 : newValue;
+                    for ( int i = pointCount-1 ; i >= 0 ; i-- ) {
+                        final int offset = neighbours[i];
+                        final float newW = water[offset]+fraction;
+                        water[offset] = newW;
                     }
                 }
             }
