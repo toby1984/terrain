@@ -127,7 +127,7 @@ public class OpenGLRenderer implements ApplicationListener
 
         private FloatTexture(int textureHandle, int width, int height)
         {
-            this.buffer = FloatBuffer.allocate( width * height );
+            this.buffer = Data.newFloatBuffer( width * height );
             this.textureHandle = textureHandle;
             this.width = width;
             this.heigth = height;

@@ -20,7 +20,7 @@ public class Main extends JFrame
 
     private static final boolean COLORIZE = false;
 
-    private static final float FPS = 60;
+    private static final float FPS = 10;
 
     public static final boolean RENDER_OPENGL = true;
     private static final int WATER_MINHEIGHT = 1;
@@ -28,7 +28,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 257; // MUST be Power-Of-Two + 1 !!!!
+    private static final int INITAL_SIZE = 65; // MUST be Power-Of-Two + 1 !!!!
 
     public enum Mode {WATER,HEIGHT}
 
@@ -541,7 +541,7 @@ public class Main extends JFrame
         }
 
         long t1 = System.currentTimeMillis();
-        data.flow(10);
+        data.flow(1);
         long t2 = System.currentTimeMillis();
         tickCnt++;
         sumFlowTime += (t2-t1);

@@ -1,10 +1,15 @@
 package de.codesourcery.terrain;
 
+import com.badlogic.gdx.utils.Disposable;
+import org.jocl.Sizeof;
+
 import java.awt.Rectangle;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Random;
@@ -15,12 +20,20 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Data
+public class Data implements Disposable
 {
     /**
      * Any water level below this value will be clamped to zero.
      */
     public static final float EPSILON = 0.0001f;
+
+    @Override
+    public void dispose()
+    {
+        if ( openCLExecutor != null ) {
+            openCLExecutor.dispose();
+        }
+    }
 
     protected enum CalcMode {
         JAVA,
@@ -28,10 +41,7 @@ public class Data
         OPENCL
     }
 
-    private static final CalcMode CALC_MODE = CalcMode.NATIVE;
-
-
-    private static FloatMemoryPool memoryPool = new FloatMemoryPool();
+    private static final CalcMode CALC_MODE = CalcMode.OPENCL;
 
     private final Rectangle[] slices;
     private final MyRunnable[] runnables;
@@ -68,9 +78,11 @@ public class Data
     private final int threadCount;
     public final FloatBuffer height;
     public final FloatBuffer water;
+    public final FloatBuffer tmp;
     private final int[][] offsets;
     public final int size;
 
+    private final OpenCLExecutor openCLExecutor;
     private final ThreadPoolExecutor threadPool;
     private final CyclicBarrier barrier;
 
@@ -82,8 +94,11 @@ public class Data
 
         final int elemCount = size * size;
 
-        this.height = FloatBuffer.allocate( elemCount );
-        this.water = FloatBuffer.allocate( elemCount );
+        this.height = newFloatBuffer( elemCount );
+        this.water = newFloatBuffer( elemCount );
+        this.tmp = newFloatBuffer( elemCount );
+
+        this.openCLExecutor = new OpenCLExecutor();
 
         final ArrayBlockingQueue workQueue =
                 new ArrayBlockingQueue(10 );
@@ -286,7 +301,10 @@ public class Data
                 }
                 break;
             case OPENCL:
-                // TODO: Implement me
+                for ( int i = 0 ; i < count ; i++ )
+                {
+                    openCLExecutor.flow( this );
+                }
                 break;
         }
         dirty = true;
@@ -693,5 +711,12 @@ public class Data
             value |= (tmp & 0xff);
         }
         return value;
+    }
+
+    public static FloatBuffer newFloatBuffer(int n)
+    {
+        return FloatBuffer.allocate( n );
+//        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(n * Sizeof.cl_float);
+//        return byteBuffer.order( ByteOrder.nativeOrder()).asFloatBuffer();
     }
 }
