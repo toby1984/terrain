@@ -36,7 +36,7 @@ import java.util.List;
  */
 public class OpenGLRenderer implements ApplicationListener
 {
-    public static final boolean RENDER_WATER =false;
+    public static final boolean RENDER_WATER = true;
     public Environment environment;
     public final PerspectiveCamera camera;
     public FirstPersonCameraController camController;
@@ -48,11 +48,13 @@ public class OpenGLRenderer implements ApplicationListener
     {
         public final Model model;
         public final ModelInstance modelInstance;
+        public boolean hasTransparency;
 
-        private ModelAndInstance(Model model, ModelInstance instance)
+        private ModelAndInstance(Model model, ModelInstance instance,boolean hasTransparency)
         {
             this.model = model;
             this.modelInstance = instance;
+            this.hasTransparency = hasTransparency;
         }
 
         public void dispose() {
@@ -61,8 +63,7 @@ public class OpenGLRenderer implements ApplicationListener
     }
 
     // @GuardedBy( MODEL_LOCK )
-    private final List<ModelAndInstance> items =
-            new ArrayList<>();
+    private final List<ModelAndInstance> items = new ArrayList<>();
 
     // @GuardedBy( MODEL_LOCK )
     private final TriangleList heightMapMesh = new TriangleList();
@@ -108,12 +109,6 @@ public class OpenGLRenderer implements ApplicationListener
         {
             this.dataChanged = this.data == null || data.dirty;
             this.data = data;
-            final int size = data.size;
-            // note: Diamond-square algorithm requires that
-            // heightmap is (Power-Of-Two + 1) but
-            // OpenGL works best with Power-Of-Two textures...
-//            this.heightMap = mapBeRealloc(this.heightMap,size-1,size-1);
-//            this.waterMap = mapBeRealloc(this.heightMap,size-1,size-1);
         }
     }
 
@@ -186,18 +181,10 @@ public class OpenGLRenderer implements ApplicationListener
     @Override
     public void create()
     {
-        // setup shader to calculate water propagation
-//        final String vertexSrc = "";
-//        final String fragmentSrc = "";
-//        flowShaders = new ShaderProgram(vertexSrc,fragmentSrc);
-//        if ( ! flowShaders.isCompiled() ) {
-//            throw new RuntimeException("Failed to compile shader");
-//        }
-
-        // setup libgdx stuff
         environment = new Environment();
         environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f));
         environment.set( IntAttribute.createCullFace( GL20.GL_FRONT ));
+//        environment.set( IntAttribute.createCullFace( GL20.GL_NONE));
 
         final Vector3 lightDir1 = new Vector3(0,0,1);
         environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, lightDir1));
@@ -214,54 +201,11 @@ public class OpenGLRenderer implements ApplicationListener
 
         final ModelBuilder modelBuilder = new ModelBuilder();
         final Material material = new Material( ColorAttribute.createDiffuse( Color.GREEN ) );
-        final Model meshModel = modelBuilder.createBox(5f, 5f, 5f,
-                material, Usage.Position | Usage.Normal);
+        final Model meshModel = modelBuilder.createBox(5f, 5f, 5f, material, Usage.Position | Usage.Normal);
         final ModelInstance modelInstance = new ModelInstance( meshModel );
-        this.items.add( new ModelAndInstance( meshModel, modelInstance ) );
+        this.items.add( new ModelAndInstance( meshModel, modelInstance, false ) );
     }
 
-
-    private void setupRenderingTarget()  {
-        /*
-        // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
-GLuint FramebufferName = 0;
-glGenFramebuffers(1, &FramebufferName);
-glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
-
-// The texture we're going to render to
-GLuint renderedTexture;
-glGenTextures(1, &renderedTexture);
-
-// "Bind" the newly created texture : all future texture functions will modify this texture
-glBindTexture(GL_TEXTURE_2D, renderedTexture);
-
-// Give an empty image to OpenGL ( the last "0" )
-glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, 1024, 768, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
-
-// Poor filtering. Needed !
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-// The depth buffer
-GLuint depthrenderbuffer;
-glGenRenderbuffers(1, &depthrenderbuffer);
-glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
-glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 768);
-glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
-
-// Set "renderedTexture" as our colour attachement #0
-glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
-
-// Set the list of draw buffers.
-GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
-
-// Always check that our framebuffer is ok
-if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-  throw new RuntimeException("Failed to setup framebuffer target");
-}
-         */
-    }
     @Override
     public void render()
     {
@@ -270,14 +214,6 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         if ( data == null ) {
             return;
         }
-
-//        heightMap.uploadBuffer(GL20.GL_TEXTURE0);
-//        waterMap.uploadBuffer(GL20.GL_TEXTURE1);
-//
-//        flowShaders.begin();
-//        flowShaders.setUniformi( "heightMap", 0); // texture unit #0
-//        flowShaders.setUniformi( "waterMap", 1); // texture unit #1
-//        flowShaders.end();
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
@@ -309,11 +245,14 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 
         final ModelBuilder modelBuilder = new ModelBuilder();
         modelBuilder.begin();
+
         final Material material = new Material();
         VertexAttribute attr1 = VertexAttribute.Position();
         VertexAttribute attr2 = VertexAttribute.Normal();
         VertexAttribute attr3 = VertexAttribute.ColorUnpacked();
         VertexAttributes attrs = new VertexAttributes( attr1,attr2,attr3 );
+
+        // build heightmap mesh
         final MeshPartBuilder part1 = modelBuilder.part( "part1", GL20.GL_TRIANGLES, attrs, material );
 
         heightMapMesh.clear();
@@ -325,7 +264,6 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 
         if ( RENDER_WATER )
         {
-            waterMesh.clear();
             waterMesh.setupWaterMesh( data, tileSize );
             waterMesh.compact();
             part1.addMesh( waterMesh.vertices, waterMesh.indices );
@@ -333,7 +271,7 @@ if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 
         final Model model = modelBuilder.end();
         final ModelInstance instance = new ModelInstance( model );
-        items.add( new ModelAndInstance( model,instance ) );
+        items.add( new ModelAndInstance( model,instance,false ) );
     }
 
     @Override
