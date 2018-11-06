@@ -78,7 +78,7 @@ public class Data implements Disposable
     private final int threadCount;
     public final FloatBuffer height;
     public final FloatBuffer water;
-    public final FloatBuffer tmp;
+
     private final int[][] offsets;
     public final int size;
 
@@ -96,7 +96,6 @@ public class Data implements Disposable
 
         this.height = newFloatBuffer( elemCount );
         this.water = newFloatBuffer( elemCount );
-        this.tmp = newFloatBuffer( elemCount );
 
         this.openCLExecutor = new OpenCLExecutor();
 

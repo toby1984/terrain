@@ -28,6 +28,7 @@ import static org.jocl.CL.CL_CONTEXT_PLATFORM;
 import static org.jocl.CL.CL_DEVICE_TYPE_ALL;
 import static org.jocl.CL.CL_MEM_COPY_HOST_PTR;
 import static org.jocl.CL.CL_MEM_READ_ONLY;
+import static org.jocl.CL.CL_MEM_READ_WRITE;
 import static org.jocl.CL.CL_MEM_WRITE_ONLY;
 import static org.jocl.CL.CL_TRUE;
 import static org.jocl.CL.clBuildProgram;
@@ -58,7 +59,6 @@ public class OpenCLExecutor implements Disposable
     private cl_mem relNeighbourOffsetBuffer;
     private cl_mem heightBuffer;
     private cl_mem waterBuffer;
-    private cl_mem dstBuffer;
 
     public static void main(String[] args) throws Exception {
 
@@ -171,11 +171,9 @@ public class OpenCLExecutor implements Disposable
                             CL_MEM_COPY_HOST_PTR,
                     Sizeof.cl_int * 8, Pointer.to(relNeighbourOffsets), null );
 
-            waterBuffer = clCreateBuffer( context, CL_MEM_READ_ONLY,
+            waterBuffer = clCreateBuffer( context, CL_MEM_READ_WRITE,
                     Sizeof.cl_float * elements, null, null );
             heightBuffer = clCreateBuffer( context, CL_MEM_READ_ONLY,
-                    Sizeof.cl_float * elements, null, null );
-            dstBuffer = clCreateBuffer( context, CL_MEM_WRITE_ONLY,
                     Sizeof.cl_float * elements, null, null );
 
             bufferSize = data.size;
@@ -184,13 +182,11 @@ public class OpenCLExecutor implements Disposable
             /*
              * __kernel void flow(__global const float *height,
              *                   __global const float *water,
-             *                   __global float *dst,
              *                   __global const int *relNeighbourOffsets)
              */
             clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(heightBuffer));
             clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(waterBuffer));
-            clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(dstBuffer));
-            clSetKernelArg(kernel, 3, Sizeof.cl_mem, Pointer.to(relNeighbourOffsetBuffer));
+            clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(relNeighbourOffsetBuffer));
         }
 //        else {
         // no allocation needed, just upload buffer contents
@@ -240,7 +236,6 @@ public class OpenCLExecutor implements Disposable
     {
         waterBuffer = safeRelease(waterBuffer, CL::clReleaseMemObject );
         heightBuffer = safeRelease(heightBuffer, CL::clReleaseMemObject );
-        dstBuffer = safeRelease(dstBuffer, CL::clReleaseMemObject );
         relNeighbourOffsetBuffer = safeRelease(relNeighbourOffsetBuffer, CL::clReleaseMemObject );
     }
 
@@ -283,35 +278,15 @@ public class OpenCLExecutor implements Disposable
         int result = clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
                 global_work_size, local_work_size, 0, null, null);
 
-        if ( DEBUG )
-        {
-            System.out.println("Enqueue returned: "+result);
-            data.tmp.rewind();
-            for ( int i = 0 ; i < data.size*data.size ; i++) {
-                data.tmp.put(0);
-            }
-            System.out.println("TMP buffer before invoking kernel");
-            dumpBuffer( data.tmp, data.size );
-            data.tmp.rewind();
-        }
-
         // Read the result
         final int elements = data.size*data.size;
-        result = clEnqueueReadBuffer(commandQueue, dstBuffer, CL_TRUE, 0,
-                elements * Sizeof.cl_float, Pointer.to(data.tmp), 0, null, null);
+        result = clEnqueueReadBuffer(commandQueue, waterBuffer, CL_TRUE, 0,
+                elements * Sizeof.cl_float, Pointer.to(data.water), 0, null, null);
 
         if ( DEBUG )
         {
             System.out.println("readBuffer returned: "+result);
-            dumpBuffer( data.tmp, data.size );
-        }
-
-        data.tmp.rewind();
-        for ( int i = 0, len = data.size*data.size ; i < len ; i++ )
-        {
-            final float delta = data.tmp.get();
-            final float value = data.water.get(i) + delta;
-            data.water.put(i,value);
+            dumpBuffer( data.water, data.size );
         }
     }
 

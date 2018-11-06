@@ -102,6 +102,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
           <executable>java</executable>
           <arguments>
             <argument>-Djava.library.path=/home/tgierke/intellij_workspace/terrain/lib</argument>
+            <argument>-Djna.library.path=/home/tgierke/intellij_workspace/terrain/lib</argument>
             <argument>-classpath</argument>
             <!-- automatically creates the classpath using all project dependencies, also adding the project build directory -->
             <classpath/>
