@@ -95,6 +95,12 @@ public class TriangleList
         addVertex(x,y,z,0xffff0000);
     }
 
+    private String vertex(int pointNo)
+    {
+        final int ptr = pointNo*COMPONENT_CNT;
+        return "("+vertices[ptr]+","+vertices[ptr+1]+","+vertices[ptr+2]+")";
+    }
+
     public void addTriangle(int p0,int p1,int p2)
     {
         if ( indexPtr == indices.length )
@@ -271,6 +277,9 @@ public class TriangleList
     private void floodFill(int ix, int iz, boolean[] tmpVisited, boolean[] alreadyVisited,Data data)
     {
         final int offset = iz*data.size+ix;
+        if ( alreadyVisited[offset]  || tmpVisited[offset] ) {
+            return;
+        }
         tmpVisited[offset] = true;
         alreadyVisited[offset] = true;
 
@@ -286,7 +295,7 @@ public class TriangleList
                     int rx = ix+dx;
                     int rz = iz+dz;
                     int ptr = rz*data.size+rx;
-                    if ( data.water( ptr ) != 0 && !tmpVisited[ptr] && !alreadyVisited[ptr] )
+                    if ( data.water( ptr ) != 0 )
                     {
                         floodFill( rx, rz, tmpVisited, alreadyVisited, data );
                     }

@@ -28,7 +28,7 @@ public class Main extends JFrame
 
     private static final int RND_RANGE = 200;
 
-    private static final int INITAL_SIZE = 17; // MUST be Power-Of-Two + 1 !!!!
+    private static final int INITAL_SIZE = 65; // MUST be Power-Of-Two + 1 !!!!
 
     public enum Mode {WATER,HEIGHT}
 
@@ -328,8 +328,8 @@ public class Main extends JFrame
                             mode = Mode.values()[idx];
                             break;
                         case 'w':
-                            data.setupWaterDebug( WATER_AMOUNT );
-//                            data.initWater( WATER_MINHEIGHT, WATER_AMOUNT);
+//                            data.setupWaterDebug( WATER_AMOUNT );
+                            data.initWater( WATER_MINHEIGHT, WATER_AMOUNT);
                             break;
                         case ' ':
                             data.flow(1);

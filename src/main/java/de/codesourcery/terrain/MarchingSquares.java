@@ -17,8 +17,8 @@ public class MarchingSquares
                         TriangleList meshBuilder,
                         float squareSize)
     {
-        System.out.println("INPUT:");
-        TriangleList.print(outline,data.size);
+//        System.out.println("INPUT:");
+//        TriangleList.print(outline,data.size);
 
         final int waterColor = 0xff0000ff;
 
@@ -28,20 +28,17 @@ public class MarchingSquares
         final float half = squareSize / 2f;
         for ( int z = 0 ; z < size-2 ; z++)
         {
-            float z0 = origin + z*squareSize;
+            float z0 = origin + z*tileSize;
             int ptr = z*size;
             for ( int x = 0 ; x < size-2 ; x++, ptr++)
             {
-                float x0 = origin + x*squareSize;
-                final boolean isIn0 = outline[ z*size + x ];
-                final boolean isIn1 = outline[ z*size + x ];
-                final boolean isIn2 = outline[ z*size + x ];
-                final boolean isIn3 = outline[ z*size + x ];
-//                final boolean isIn1 = outline[ z*size + x + 1 ];
-//                final boolean isIn2 = outline[ (z+1)*size + x +1  ];
-//                final boolean isIn3 = outline[ (z+1)*size + x ];
+                float x0 = origin + x*tileSize;
+                final boolean isIn0 = outline[ ptr ];
+                final boolean isIn1 = outline[ ptr + 1 ];
+                final boolean isIn2 = outline[ ptr + size + 1 ];
+                final boolean isIn3 = outline[ ptr + size ];
                 final int index = (isIn3 ? 8 : 0) | (isIn2 ? 4 : 0) | (isIn1 ? 2 : 0) | (isIn0 ? 1: 0);
-                System.out.println( x+","+z+" => index: "+index);
+//                System.out.println( x+","+z+" ("+x0+","+z0+") => index: "+index);
                 switch(index)
                 {
                     case 0: // trivial: fully outside
