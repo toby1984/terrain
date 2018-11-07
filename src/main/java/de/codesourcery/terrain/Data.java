@@ -239,6 +239,32 @@ public class Data implements Disposable
         }
     }
 
+    public void setupWaterDebug(float height) {
+
+        // creates a (roughly) circular disc
+        // of water with the given height
+        Arrays.fill( water.array(),0);
+
+        final int radius = Math.max( 1 , (int) (size/3f) );
+        final int limit = Math.max( size-1 , radius+1 );
+
+        final int cx = size/2;
+        final int cy = size/2;
+
+        for ( int x = -limit ; x < limit ; x++ )
+        {
+            for ( int y = -limit ; y < limit ; y++ )
+            {
+                final int px = cx + x;
+                final int py = cy + y;
+                final double distance = Math.sqrt( x*x+y*y );
+                if ( distance <= radius ) {
+                    setWater(px,py,height);
+                }
+            }
+        }
+    }
+
     public void initWater(int minHeight,float amount)
     {
         height.rewind();

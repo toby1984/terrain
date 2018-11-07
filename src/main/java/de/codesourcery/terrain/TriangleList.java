@@ -186,43 +186,38 @@ public class TriangleList
 
     public static void main(String[] args)
     {
-        final int size = 5;
+        final int size = 17;
         final float tileSize = 10f;
 
         final Data data = new Data(size);
-        data.initHeights(0xdeadbeef, 200);
-        data.smooth();
-        data.smooth();
-        data.smooth();
-        data.initWater(5,10);
+        data.setupWaterDebug( 10 );
 
-        TriangleList list =
-            new TriangleList();
+        TriangleList list = new TriangleList();
 
         list.setupWaterMesh(data,tileSize);
 
-        final Vector3 p0=new Vector3();
-        final Vector3 p1=new Vector3();
-        final Vector3 p2=new Vector3();
-
-        final float[] vertices = list.vertices;
-        final short[] indices = list.indices;
-
-        for ( int i = 0 , len = list.triangleCount() ; i < len ; i++ )
-        {
-            final int idx0 = indices[i*3];
-            final int idx1 = indices[i*3+1];
-            final int idx2 = indices[i*3+2];
-
-            final int p0Offset = idx0 * TriangleList.COMPONENT_CNT;
-            final int p1Offset = idx1 * TriangleList.COMPONENT_CNT;
-            final int p2Offset = idx2 * TriangleList.COMPONENT_CNT;
-
-            p0.set( vertices[p0Offset], vertices[p0Offset+1], vertices[p0Offset+2] );
-            p1.set( vertices[p1Offset], vertices[p1Offset+1], vertices[p1Offset+2] );
-            p2.set( vertices[p2Offset], vertices[p2Offset+1], vertices[p2Offset+2] );
-            System.out.println( p0+" -> "+p1+" -> "+p2);
-        }
+//        final Vector3 p0=new Vector3();
+//        final Vector3 p1=new Vector3();
+//        final Vector3 p2=new Vector3();
+//
+//        final float[] vertices = list.vertices;
+//        final short[] indices = list.indices;
+//
+//        for ( int i = 0 , len = list.triangleCount() ; i < len ; i++ )
+//        {
+//            final int idx0 = indices[i*3];
+//            final int idx1 = indices[i*3+1];
+//            final int idx2 = indices[i*3+2];
+//
+//            final int p0Offset = idx0 * TriangleList.COMPONENT_CNT;
+//            final int p1Offset = idx1 * TriangleList.COMPONENT_CNT;
+//            final int p2Offset = idx2 * TriangleList.COMPONENT_CNT;
+//
+//            p0.set( vertices[p0Offset], vertices[p0Offset+1], vertices[p0Offset+2] );
+//            p1.set( vertices[p1Offset], vertices[p1Offset+1], vertices[p1Offset+2] );
+//            p2.set( vertices[p2Offset], vertices[p2Offset+1], vertices[p2Offset+2] );
+//            System.out.println( p0+" -> "+p1+" -> "+p2);
+//        }
     }
 
     public void setupWaterMesh(Data data,
@@ -235,40 +230,38 @@ public class TriangleList
         final MarchingSquares squares = new MarchingSquares();
 
         final boolean[] alreadyVisited = new boolean[ size*size ];
+        final boolean[] outline = new boolean[ size*size ];
 
-        final boolean[] tmpVisited = new boolean[ size*size ];
-
-        int pointNo = 0;
-        int vertexIdx = 0;
+        int ptr = 0;
         for (int iz = 0 ; iz < size; iz++)
         {
-            for (int ix = 0 ; ix < size ; ix++,pointNo++,vertexIdx += COMPONENT_CNT)
+            for (int ix = 0 ; ix < size ; ix++,ptr++)
             {
-                if ( ! alreadyVisited[pointNo] && data.water(pointNo) != 0.0f)
+                if ( ! alreadyVisited[ptr] && data.water(ptr) != 0.0f)
                 {
                     // we found water,try to expand area as much as possible
-                    Arrays.fill(tmpVisited,false);
-                    floodFill(ix,iz,tmpVisited,alreadyVisited,data);
+                    Arrays.fill(outline,false);
+                    floodFill(ix,iz,outline,alreadyVisited,data);
 
                     // use marching squares to convert shape into a mesh
-                    squares.process(data,tileSize,tmpVisited,this,tileSize);
+                    squares.process(data,tileSize,outline,this,tileSize);
                 }
             }
         }
         calculateNormals();
     }
 
-    private static void print(boolean[] data,int size)
+    public static void print(boolean[] data,int size)
     {
         for ( int iz = 0 ; iz < size ; iz++)
         {
             for ( int ix = 0 ; ix < size ; ix++ ) {
                 if ( data[iz*size+ix] ) {
-                    System.out.print(".");
+                    System.out.print("X");
                 }
                 else
                 {
-                    System.out.print( "_" );
+                    System.out.print( "." );
                 }
             }
             System.out.println();
@@ -285,23 +278,22 @@ public class TriangleList
         final int minZ = iz < 1 ? 0 : -1;
         final int maxX = ix > data.size-2 ? 0 : 1;
         final int maxZ = iz > data.size-2 ? 0 : 1;
-        for ( int dx = minX ; dx < maxX ; dx++ )
+        for ( int dx = minX ; dx <= maxX ; dx++ )
         {
-            for ( int dz = minZ ; dz < maxZ ; dz++ )
+            for ( int dz = minZ ; dz <= maxZ ; dz++ )
             {
                 if ( dx != 0 || dz != 0 ) {
                     int rx = ix+dx;
                     int rz = iz+dz;
                     int ptr = rz*data.size+rx;
-                    if ( data.water(ptr) != 0 && ! tmpVisited[ptr] && ! alreadyVisited[ptr] )
+                    if ( data.water( ptr ) != 0 && !tmpVisited[ptr] && !alreadyVisited[ptr] )
                     {
-                        floodFill( rx,rz,tmpVisited,alreadyVisited,data );
+                        floodFill( rx, rz, tmpVisited, alreadyVisited, data );
                     }
                 }
             }
         }
     }
-
 
     public void setupHeightMesh(Data data, float squareSize,int[] colorGradient)
     {
