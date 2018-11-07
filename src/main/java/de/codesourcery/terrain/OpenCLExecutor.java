@@ -39,13 +39,21 @@ import static org.jocl.CL.clCreateKernel;
 import static org.jocl.CL.clCreateProgramWithSource;
 import static org.jocl.CL.clEnqueueNDRangeKernel;
 import static org.jocl.CL.clEnqueueReadBuffer;
+import static org.jocl.CL.clFinish;
+import static org.jocl.CL.clGetCommandQueueInfo;
 import static org.jocl.CL.clGetDeviceIDs;
 import static org.jocl.CL.clGetPlatformIDs;
 import static org.jocl.CL.clSetKernelArg;
 
 public class OpenCLExecutor implements Disposable
 {
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
+
+    static {
+        if ( DEBUG ) {
+            CL.setLogLevel( CL.LogLevel.LOG_DEBUGTRACE );
+        }
+    }
 
     private boolean initDone;
 
@@ -188,31 +196,16 @@ public class OpenCLExecutor implements Disposable
             clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(waterBuffer));
             clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(relNeighbourOffsetBuffer));
         }
-//        else {
-        // no allocation needed, just upload buffer contents
-        if ( DEBUG )
-        {
-            System.out.println( "Uploading height data" );
-            dumpBuffer( data.height, data.size );
-            System.out.println( "Uploading water data" );
-            dumpBuffer( data.water, data.size );
-        }
-
         CL.clEnqueueWriteBuffer( commandQueue, heightBuffer,true,0,
                 Sizeof.cl_float * elements,Pointer.to(data.height),0,null,null);
 
         CL.clEnqueueWriteBuffer( commandQueue, waterBuffer,true,0,
                 Sizeof.cl_float * elements,Pointer.to(data.water),0,null,null);
-//        }
     }
 
     private String getKernelSource() {
 
         final String path = "/opencl/kernel.c";
-//        final String path = "/opencl/test_kernel.c";
-        if ( DEBUG ) {
-            System.out.println("Using kernel "+path);
-        }
         try ( final InputStream in = getClass().getResourceAsStream( path ) )
         {
             if ( in == null ) {
@@ -269,25 +262,15 @@ public class OpenCLExecutor implements Disposable
         final long global_work_size[] = new long[]{data.size*data.size};
         final long local_work_size[] = new long[]{1};
 
-        if ( DEBUG )
-        {
-            System.out.println( "Invoking kernel" );
-        }
-
         // Execute the kernel
         int result = clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
                 global_work_size, local_work_size, 0, null, null);
 
         // Read the result
         final int elements = data.size*data.size;
+
         result = clEnqueueReadBuffer(commandQueue, waterBuffer, CL_TRUE, 0,
                 elements * Sizeof.cl_float, Pointer.to(data.water), 0, null, null);
-
-        if ( DEBUG )
-        {
-            System.out.println("readBuffer returned: "+result);
-            dumpBuffer( data.water, data.size );
-        }
     }
 
     private static <T> T safeRelease(T value, Consumer<T> func) {

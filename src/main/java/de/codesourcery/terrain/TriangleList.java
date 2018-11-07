@@ -9,6 +9,8 @@ import java.util.Arrays;
 
 public class TriangleList
 {
+    private static final boolean MERGE_VERTICES = true;
+
     // position (x3)
     // normal (x3)
     // color unpacked (x4)
@@ -59,6 +61,19 @@ public class TriangleList
 
     public int addVertex(Vector3 v)
     {
+        if ( MERGE_VERTICES )
+        {
+            for (int i = 0, len = vertexPtr; i < len; i += COMPONENT_CNT)
+            {
+                if ( vertices[i] == v.x &&
+                        vertices[i + 1] == v.y &&
+                        vertices[i + 2] == v.z )
+                {
+                    return i/COMPONENT_CNT;
+                }
+            }
+        }
+
         final int vertexNo = vertexPtr/COMPONENT_CNT;
         addVertex( v.x,v.y,v.z );
         return vertexNo;
@@ -66,9 +81,31 @@ public class TriangleList
 
     public int addVertex(Vector3 v,int color)
     {
+        if ( MERGE_VERTICES )
+        {
+            for (int i = 0, len = vertexPtr; i < len; i += COMPONENT_CNT)
+            {
+                if ( vertices[i] == v.x &&
+                        vertices[i + 1] == v.y &&
+                        vertices[i + 2] == v.z &&
+                        isSameColor( i, color ) )
+                {
+                    return i/COMPONENT_CNT;
+                }
+            }
+        }
+
         final int vertexNo = vertexPtr/COMPONENT_CNT;
         addVertex( v.x,v.y,v.z,color);
         return vertexNo;
+    }
+
+    private boolean isSameColor(int idx,int color)
+    {
+        return this.vertices[idx+6] ==((color>>16) & 0xff)/255f && // r
+                this.vertices[idx+7] == ((color>> 8) & 0xff)/255f && // g
+                this.vertices[idx+8] == ((color    ) & 0xff)/255f && // b
+                this.vertices[idx+9] == ((color>>24) & 0xff)/255f; // a
     }
 
     public void addVertex(float x, float y, float z,int color)
@@ -262,6 +299,9 @@ public class TriangleList
                 }
             }
         }
+        System.out.println("Water mesh has "+vertexCount()+" vertices, "+indexCount()+" indices and "
+                +triangleCount()+" triangles");
+        System.out.flush();
         calculateNormals();
     }
 
@@ -614,21 +654,35 @@ public class TriangleList
         {
             final int triIdx = i*3;
 
-            final int offsetP0 = indices[triIdx] * TriangleList.COMPONENT_CNT;
-            final int offsetP1 = indices[triIdx + 1] * TriangleList.COMPONENT_CNT;
-            final int offsetP2 = indices[triIdx + 2] * TriangleList.COMPONENT_CNT;
+            final int offsetP0 = ((int) indices[triIdx]     & 0xffff) * TriangleList.COMPONENT_CNT;
+            final int offsetP1 = ((int) indices[triIdx + 1] & 0xffff) * TriangleList.COMPONENT_CNT;
+            final int offsetP2 = ((int) indices[triIdx + 2] & 0xffff) * TriangleList.COMPONENT_CNT;
 
-            final float p0X = vertices[offsetP0];
-            final float p0Y = vertices[offsetP0 + 1];
-            final float p0Z = vertices[offsetP0 + 2];
+            final float p0X;
+            final float p0Y;
+            final float p0Z;
+            final float p1X;
+            final float p1Y;
+            final float p1Z;
+            final float p2X;
+            final float p2Y;
+            final float p2Z;
 
-            final float p1X = vertices[offsetP1];
-            final float p1Y = vertices[offsetP1 + 1];
-            final float p1Z = vertices[offsetP1 + 2];
+            try {
+                p0X = vertices[offsetP0];
+                p0Y = vertices[offsetP0 + 1];
+                p0Z = vertices[offsetP0 + 2];
 
-            final float p2X = vertices[offsetP2];
-            final float p2Y = vertices[offsetP2 + 1];
-            final float p2Z = vertices[offsetP2 + 2];
+                p1X = vertices[offsetP1];
+                p1Y = vertices[offsetP1 + 1];
+                p1Z = vertices[offsetP1 + 2];
+
+                p2X = vertices[offsetP2];
+                p2Y = vertices[offsetP2 + 1];
+                p2Z = vertices[offsetP2 + 2];
+            } catch(ArrayIndexOutOfBoundsException e) {
+                throw e;
+            }
 
             p0.set( p0X, p0Y, p0Z );
             p1.set( p1X, p1Y, p1Z );
