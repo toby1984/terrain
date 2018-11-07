@@ -22,6 +22,8 @@ public class TriangleList
     // triangle corner indices (clockwise)
     public short[] indices = new short[0];
 
+    private final IntPointStack pointStack = new IntPointStack();
+
     private int vertexPtr = 0;
     private int indexPtr = 0;
 
@@ -239,15 +241,21 @@ public class TriangleList
         final boolean[] outline = new boolean[ size*size ];
 
         int ptr = 0;
+        float waterLevel;
         for (int iz = 0 ; iz < size; iz++)
         {
             for (int ix = 0 ; ix < size ; ix++,ptr++)
             {
-                if ( ! alreadyVisited[ptr] && data.water(ptr) != 0.0f)
+                if ( ! alreadyVisited[ptr] && ( waterLevel = data.water(ptr) ) != 0.0f)
                 {
                     // we found water,try to expand area as much as possible
                     Arrays.fill(outline,false);
-                    floodFill(ix,iz,outline,alreadyVisited,data);
+
+                    pointStack.clear();
+                    pointStack.push(ix,iz);
+
+                    final float trueLevel = waterLevel + data.height( ptr );
+                    floodFill(outline,alreadyVisited,data,trueLevel);
 
                     // use marching squares to convert shape into a mesh
                     squares.process(data,tileSize,outline,this,tileSize);
@@ -274,30 +282,47 @@ public class TriangleList
         }
     }
 
-    private void floodFill(int ix, int iz, boolean[] tmpVisited, boolean[] alreadyVisited,Data data)
+    private void floodFill(boolean[] outline, boolean[] alreadyVisited,Data data, float heightLevel)
     {
-        final int offset = iz*data.size+ix;
-        if ( alreadyVisited[offset]  || tmpVisited[offset] ) {
-            return;
-        }
-        tmpVisited[offset] = true;
-        alreadyVisited[offset] = true;
+        final float levelEpsilon = 1f;
 
-        final int minX = ix < 1 ? 0 : -1;
-        final int minZ = iz < 1 ? 0 : -1;
-        final int maxX = ix > data.size-2 ? 0 : 1;
-        final int maxZ = iz > data.size-2 ? 0 : 1;
-        for ( int dx = minX ; dx <= maxX ; dx++ )
+        while ( ! pointStack.isEmpty() )
         {
-            for ( int dz = minZ ; dz <= maxZ ; dz++ )
+            final int ix = pointStack.peekX();
+            final int iz = pointStack.peekY();
+            pointStack.pop();
+
+            final int offset = iz * data.size + ix;
+            if ( alreadyVisited[offset] || outline[offset] )
             {
-                if ( dx != 0 || dz != 0 ) {
-                    int rx = ix+dx;
-                    int rz = iz+dz;
-                    int ptr = rz*data.size+rx;
-                    if ( data.water( ptr ) != 0 )
+                continue;
+            }
+            outline[offset] = true;
+            alreadyVisited[offset] = true;
+
+            final int minX = ix < 1 ? 0 : -1;
+            final int minZ = iz < 1 ? 0 : -1;
+            final int maxX = ix > data.size - 2 ? 0 : 1;
+            final int maxZ = iz > data.size - 2 ? 0 : 1;
+            for (int dx = minX; dx <= maxX; dx++)
+            {
+                for (int dz = minZ; dz <= maxZ; dz++)
+                {
+                    if ( dx != 0 || dz != 0 )
                     {
-                        floodFill( rx, rz, tmpVisited, alreadyVisited, data );
+                        int rx = ix + dx;
+                        int rz = iz + dz;
+                        int ptr = rz * data.size + rx;
+                        final float waterLevel = data.water( ptr );
+                        if ( waterLevel > 0 )
+                        {
+                            final float otherHeight = waterLevel + data.height( ptr );
+                            final float delta = Math.abs( otherHeight - heightLevel );
+                            if ( delta <= levelEpsilon )
+                            {
+                                pointStack.push( rx, rz );
+                            }
+                        }
                     }
                 }
             }

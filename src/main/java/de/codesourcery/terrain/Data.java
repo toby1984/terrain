@@ -480,6 +480,7 @@ public class Data implements Disposable
             float v = height.get();
             height.put( i, (v-min)*scale );
         }
+        this.dirty = true;
         return this;
     }
 
