@@ -85,10 +85,11 @@ public class TriangleList
         {
             for (int i = 0, len = vertexPtr; i < len; i += COMPONENT_CNT)
             {
-                if ( vertices[i] == v.x &&
-                        vertices[i + 1] == v.y &&
-                        vertices[i + 2] == v.z &&
-                        isSameColor( i, color ) )
+                if ( vertices[i]     == v.x &&
+                     vertices[i + 1] == v.y &&
+                     vertices[i + 2] == v.z
+                        // && isSameColor( i, color )
+                        )
                 {
                     return i/COMPONENT_CNT;
                 }
@@ -234,35 +235,12 @@ public class TriangleList
         final int size = 17;
         final float tileSize = 10f;
 
-        final Data data = new Data(size);
+        final Data data = new Data( size );
         data.setupWaterDebug( 10 );
 
         TriangleList list = new TriangleList();
 
-        list.setupWaterMesh(data,tileSize);
-
-//        final Vector3 p0=new Vector3();
-//        final Vector3 p1=new Vector3();
-//        final Vector3 p2=new Vector3();
-//
-//        final float[] vertices = list.vertices;
-//        final short[] indices = list.indices;
-//
-//        for ( int i = 0 , len = list.triangleCount() ; i < len ; i++ )
-//        {
-//            final int idx0 = indices[i*3];
-//            final int idx1 = indices[i*3+1];
-//            final int idx2 = indices[i*3+2];
-//
-//            final int p0Offset = idx0 * TriangleList.COMPONENT_CNT;
-//            final int p1Offset = idx1 * TriangleList.COMPONENT_CNT;
-//            final int p2Offset = idx2 * TriangleList.COMPONENT_CNT;
-//
-//            p0.set( vertices[p0Offset], vertices[p0Offset+1], vertices[p0Offset+2] );
-//            p1.set( vertices[p1Offset], vertices[p1Offset+1], vertices[p1Offset+2] );
-//            p2.set( vertices[p2Offset], vertices[p2Offset+1], vertices[p2Offset+2] );
-//            System.out.println( p0+" -> "+p1+" -> "+p2);
-//        }
+        list.setupWaterMesh( data, tileSize );
     }
 
     public void setupWaterMesh(Data data,
@@ -324,7 +302,7 @@ public class TriangleList
 
     private void floodFill(boolean[] outline, boolean[] alreadyVisited,Data data, float heightLevel)
     {
-        final float levelEpsilon = 1f;
+        final float levelEpsilon = 2f;
 
         while ( ! pointStack.isEmpty() )
         {
