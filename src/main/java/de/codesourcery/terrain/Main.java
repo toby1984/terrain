@@ -24,7 +24,7 @@ public class Main extends JFrame
 
     public static final boolean RENDER_OPENGL = true;
     private static final int WATER_MINHEIGHT = 1;
-    private static final int WATER_AMOUNT = 10;
+    private static final int WATER_AMOUNT = 5;
 
     private static final int RND_RANGE = 200;
 
@@ -447,9 +447,10 @@ public class Main extends JFrame
                     if ( w > 0 )
                     {
                         final int idx = (int) ((w-offset)*scale);
-
-
-                        image.setRGB(x,y,WATER_GRADIENT[idx]);
+                        if ( idx < WATER_GRADIENT.length )
+                        {
+                            image.setRGB( x, y, WATER_GRADIENT[idx] );
+                        }
                     }
                 }
             }

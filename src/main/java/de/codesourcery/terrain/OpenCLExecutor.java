@@ -1,11 +1,5 @@
 package de.codesourcery.terrain;
 
-/*
- * JOCL - Java bindings for OpenCL
- *
- * Copyright 2009 Marco Hutter - http://www.jocl.org/
- */
-
 import com.badlogic.gdx.utils.Disposable;
 import org.jocl.CL;
 import org.jocl.Pointer;
@@ -47,7 +41,7 @@ import static org.jocl.CL.clSetKernelArg;
 
 public class OpenCLExecutor implements Disposable
 {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     static {
         if ( DEBUG ) {
@@ -190,11 +184,13 @@ public class OpenCLExecutor implements Disposable
             /*
              * __kernel void flow(__global const float *height,
              *                   __global const float *water,
-             *                   __global const int *relNeighbourOffsets)
+             *                   __global const int *relNeighbourOffsets,
+             *                   const int rowSize)
              */
             clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(heightBuffer));
             clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(waterBuffer));
             clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(relNeighbourOffsetBuffer));
+            clSetKernelArg(kernel, 3, Sizeof.cl_int, Pointer.to(new int[]{data.size} ) );
         }
         CL.clEnqueueWriteBuffer( commandQueue, heightBuffer,true,0,
                 Sizeof.cl_float * elements,Pointer.to(data.height),0,null,null);
@@ -245,31 +241,28 @@ public class OpenCLExecutor implements Disposable
         initDone = false;
     }
 
+    private int invocationCount = 0;
+    private long bytesRead = 0;
+
     public void flow(Data data) {
 
-        try
-        {
-            setup( data );
-        }
-        catch(RuntimeException e) {
-            try {
-                dispose();
-            } catch(Exception e2) { }
-            throw e;
-        }
+        setup( data );
 
-        // Set the work-item dimensions
-        final long global_work_size[] = new long[]{data.size*data.size};
+        // for performance reasons we're ignore a 1x1 border around the
+        // height map so we don't have to deal with the lower neighbour count
+        // of boundary cells inside the OpenCL kernel
+        final int elementsWithoutBorder = (data.size-2)*(data.size-2);
+        final long global_work_size[] = new long[]{elementsWithoutBorder};
         final long local_work_size[] = new long[]{1};
 
         // Execute the kernel
-        int result = clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
+        clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
                 global_work_size, local_work_size, 0, null, null);
 
-        // Read the result
         final int elements = data.size*data.size;
 
-        result = clEnqueueReadBuffer(commandQueue, waterBuffer, CL_TRUE, 0,
+        // Read the result
+        clEnqueueReadBuffer(commandQueue, waterBuffer, CL_TRUE, 0,
                 elements * Sizeof.cl_float, Pointer.to(data.water), 0, null, null);
     }
 

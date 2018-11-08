@@ -1,8 +1,9 @@
-#define EPSILON 0.001
+#define EPSILON 0.0001
 
-__kernel void flow(__global const float *height, __global float *water, __constant const int *relNeighbourOffsets)
+__kernel void flow(__global const float *height, __global float *water,
+__constant const int *relNeighbourOffsets, const int rowSize)
 {
-    int ptr = get_global_id(0);
+    int ptr = get_global_id(0)+1+rowSize;
     
     float currentWater = water[ptr];
     if ( currentWater == 0 ) {
@@ -33,14 +34,17 @@ __kernel void flow(__global const float *height, __global float *water, __consta
         float fraction = excessWater / pointCount;
         float newValue = currentWater - excessWater;
         water[ptr] = newValue < EPSILON ? 0 : newValue;
-        
-        for (int idx = 0 ; idx < 8 ; idx++)
+
+        if ( fraction > EPSILON )
         {
-            int offset = ptr + relNeighbourOffsets[idx];
-            float otherHeight = water[offset]+height[offset];
-            if ( otherHeight < currentHeight )
+            for (int idx = 0 ; idx < 8 ; idx++)
             {
-                water[offset] += fraction;
+                int offset = ptr + relNeighbourOffsets[idx];
+                float otherHeight = water[offset]+height[offset];
+                if ( otherHeight < currentHeight )
+                {
+                    water[offset] += fraction;
+                }
             }
         }
     }
