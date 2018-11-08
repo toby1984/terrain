@@ -230,7 +230,6 @@ public class OpenCLExecutor implements Disposable
 
     public void dispose()
     {
-        // Release kernel, program, and memory objects
         disposeDynamicMemory();
 
         kernel = safeRelease( kernel, CL::clReleaseKernel );
@@ -240,9 +239,6 @@ public class OpenCLExecutor implements Disposable
 
         initDone = false;
     }
-
-    private int invocationCount = 0;
-    private long bytesRead = 0;
 
     public void flow(Data data) {
 
