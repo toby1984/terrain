@@ -35,8 +35,8 @@ __constant const int *relNeighbourOffsets, const int rowSize)
         float newValue = currentWater - excessWater;
         water[ptr] = newValue < EPSILON ? 0 : newValue;
 
-        if ( fraction > EPSILON )
-        {
+//        if ( fraction > EPSILON )
+//        {
             for (int idx = 0 ; idx < 8 ; idx++)
             {
                 int offset = ptr + relNeighbourOffsets[idx];
@@ -46,6 +46,6 @@ __constant const int *relNeighbourOffsets, const int rowSize)
                     water[offset] += fraction;
                 }
             }
-        }
+//        }
     }
 }

@@ -1,9 +1,6 @@
 package de.codesourcery.terrain;
 
-import com.badlogic.gdx.math.DelaunayTriangulator;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.FloatArray;
-import com.badlogic.gdx.utils.ShortArray;
 
 import java.util.Arrays;
 
@@ -268,12 +265,16 @@ public class TriangleList
                     pointStack.clear();
                     pointStack.push(ix,iz);
 
-                    final float trueLevel = waterLevel +
-                            data.height( ptr );
-                    floodFill(outline,alreadyVisited,data,trueLevel);
+                    final float trueLevel = waterLevel + data.height( ptr );
+                    int outlineSize = floodFill(outline,alreadyVisited,data,trueLevel,0);
 
-                    // use marching squares to convert shape into a mesh
-                    squares.process(data,tileSize,outline,this,HEIGHT_SCALE_FACTOR*trueLevel, tileSize);
+                    if ( outlineSize >= 4 )
+                    {
+                        squares.process( data,
+                                tileSize,
+                                outline,
+                                this, HEIGHT_SCALE_FACTOR * trueLevel );
+                    }
                 }
             }
         }
@@ -300,9 +301,9 @@ public class TriangleList
         }
     }
 
-    private void floodFill(boolean[] outline, boolean[] alreadyVisited,Data data, float heightLevel)
+    private int floodFill(boolean[] outline, boolean[] alreadyVisited,Data data, float heightLevel,int size)
     {
-        final float levelEpsilon = 2f;
+        final float levelEpsilon = 3f;
 
         while ( ! pointStack.isEmpty() )
         {
@@ -317,6 +318,7 @@ public class TriangleList
             }
             outline[offset] = true;
             alreadyVisited[offset] = true;
+            size++;
 
             final int minX = ix < 1 ? 0 : -1;
             final int minZ = iz < 1 ? 0 : -1;
@@ -345,6 +347,7 @@ public class TriangleList
                 }
             }
         }
+        return size;
     }
 
     public void setupHeightMesh(Data data, float squareSize,int[] colorGradient)
