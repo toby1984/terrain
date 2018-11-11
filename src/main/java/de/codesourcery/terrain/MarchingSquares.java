@@ -18,7 +18,9 @@ public class MarchingSquares
                         float height,
                         float squareSize)
     {
-        final int waterColor = 0xff0000ff;
+        System.out.println("==== processing outline ====");
+        int waterColor = 0xff00ffaa;
+        int red = 0xffff0000; // TODO: remove debug code
 
         final int size = data.size;
         float origin = -tileSize*size/2f;
@@ -34,12 +36,14 @@ public class MarchingSquares
                 float x0 = origin + x*tileSize;
                 float x1 = origin + (x+1)*tileSize;
 
+                waterColor ^= 0xffff;
+
                 final boolean isIn0 = outline[ ptr ];
                 final boolean isIn1 = outline[ ptr + 1 ];
                 final boolean isIn2 = outline[ ptr + size + 1 ];
                 final boolean isIn3 = outline[ ptr + size ];
                 final int index = (isIn3 ? 8 : 0) | (isIn2 ? 4 : 0) | (isIn1 ? 2 : 0) | (isIn0 ? 1: 0);
-//                System.out.println( x+","+z+" ("+x0+","+z0+") => index: "+index);
+                System.out.println( x+","+z+" ("+x0+","+z0+") => index: "+index);
                 switch(index)
                 {
                     case 0: // trivial: fully outside
@@ -49,9 +53,9 @@ public class MarchingSquares
                         p1.set(x0+half,height,z0);
                         p2.set(x0,height,z0+ half );
 
-                        int idx0 = meshBuilder.addVertex( p0, waterColor );
-                        int idx1 = meshBuilder.addVertex( p1, waterColor );
-                        int idx2 = meshBuilder.addVertex( p2, waterColor );
+                        int idx0 = meshBuilder.addVertex( p0, red );
+                        int idx1 = meshBuilder.addVertex( p1, red );
+                        int idx2 = meshBuilder.addVertex( p2, red );
 
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;

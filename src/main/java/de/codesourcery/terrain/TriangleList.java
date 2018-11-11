@@ -243,8 +243,7 @@ public class TriangleList
         list.setupWaterMesh( data, tileSize );
     }
 
-    public void setupWaterMesh(Data data,
-                               float tileSize)
+    public void setupWaterMesh(Data data, float tileSize)
     {
         clear();
 
@@ -269,7 +268,8 @@ public class TriangleList
                     pointStack.clear();
                     pointStack.push(ix,iz);
 
-                    final float trueLevel = waterLevel + data.height( ptr );
+                    final float trueLevel = waterLevel +
+                            data.height( ptr );
                     floodFill(outline,alreadyVisited,data,trueLevel);
 
                     // use marching squares to convert shape into a mesh
