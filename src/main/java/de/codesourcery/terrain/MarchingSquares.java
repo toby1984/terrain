@@ -15,6 +15,7 @@ public class MarchingSquares
                         float tileSize,
                         boolean[] outline,
                         TriangleList meshBuilder,
+                        float height,
                         float squareSize)
     {
         final int waterColor = 0xff0000ff;
@@ -44,7 +45,6 @@ public class MarchingSquares
                     case 0: // trivial: fully outside
                         continue;
                     case 1:
-                        float height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x0+half,height,z0);
                         p2.set(x0,height,z0+ half );
@@ -56,7 +56,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 2:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+1)+data.height.get(ptr+1));
                         p0.set(x0+half,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z0+ half );
@@ -68,7 +67,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 3:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z0+ half );
@@ -82,7 +80,6 @@ public class MarchingSquares
                         meshBuilder.addQuad(idx0, idx1, idx2, idx3);
                         break;
                     case 4:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+size+1)+data.height.get(ptr+size+1));
                         p0.set(x0+ half,height,z1);
                         p1.set(x1,height,z0+ half );
                         p2.set(x1,height,z1);
@@ -94,8 +91,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 5:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
-
                         p0.set(x0,height,z0);
                         p1.set(x0+ half,height,z0);
                         p2.set(x0,height,z0+ half );
@@ -106,10 +101,9 @@ public class MarchingSquares
 
                         meshBuilder.addTriangle(idx0,idx1,idx2);
 
-                        float height2 = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+size+1)+data.height.get(ptr+size+1));
-                        p0.set(x0+ half,height2,z1);
-                        p1.set(x1,height2,z0+ half );
-                        p2.set(x1,height2,z1);
+                        p0.set(x0+ half,height,z1);
+                        p1.set(x1,height,z0+ half );
+                        p2.set(x1,height,z1);
 
                         idx0 = meshBuilder.addVertex( p0,waterColor );
                         idx1 = meshBuilder.addVertex( p1,waterColor );
@@ -118,7 +112,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 6:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+1)+data.height.get(ptr+1));
                         p0.set(x0+ half,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z1);
@@ -132,7 +125,6 @@ public class MarchingSquares
                         meshBuilder.addQuad(idx0, idx1, idx2, idx3);
                         break;
                     case 7:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z1);
@@ -144,7 +136,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 8:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+size)+data.height.get(ptr+size));
                         p0.set(x0,height,z0+ half );
                         p1.set(x0+ half,height,z1);
                         p2.set(x0,height,z1);
@@ -156,7 +147,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 9:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x0+ half,height,z0);
                         p2.set(x0+ half,height,z1);
@@ -170,7 +160,6 @@ public class MarchingSquares
                         meshBuilder.addQuad(idx0, idx1, idx2, idx3);
                         break;
                     case 10:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x0+ half,height,z1);
                         p2.set(x0,height,z1);
@@ -181,7 +170,6 @@ public class MarchingSquares
 
                         meshBuilder.addTriangle(idx0,idx1,idx2);
 
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+1)+data.height.get(ptr+1));
                         p0.set(x0+ half,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z0+ half );
@@ -193,7 +181,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 11:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x0,height,z1);
@@ -205,7 +192,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 12:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+size)+data.height.get(ptr+size));
                         p0.set(x0,height,z0+ half );
                         p1.set(x1,height,z0+ half );
                         p2.set(x1,height,z1);
@@ -219,7 +205,6 @@ public class MarchingSquares
                         meshBuilder.addQuad(idx0, idx1, idx2, idx3);
                         break;
                     case 13:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x1,height,z1);
                         p2.set(x0,height,z1);
@@ -231,7 +216,6 @@ public class MarchingSquares
                         meshBuilder.addTriangle(idx0,idx1,idx2);
                         break;
                     case 14:
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr+1)+data.height.get(ptr+1));
                         p0.set(x1,height,z0);
                         p1.set(x1,height,z1);
                         p2.set(x0,height,z1);
@@ -246,7 +230,6 @@ public class MarchingSquares
                         // get height from any of the vertices
                         // (since it's water we assume a flat surface => all vertices have the same
                         // height above 'sea level'
-                        height = TriangleList.HEIGHT_SCALE_FACTOR*(data.water.get(ptr)+data.height.get(ptr));
                         p0.set(x0,height,z0);
                         p1.set(x1,height,z0);
                         p2.set(x1,height,z1);
@@ -264,5 +247,17 @@ public class MarchingSquares
                 }
             }
         }
+    }
+
+    private void addQuad(TriangleList meshBuilder,float halfTileSize,int waterColor)
+    {
+        int idx0 = meshBuilder.addVertex( p0,waterColor );
+        int idx1 = meshBuilder.addVertex( p1,waterColor );
+        int idx2 = meshBuilder.addVertex( p2,waterColor );
+        int idx3 = meshBuilder.addVertex( p3,waterColor );
+
+        meshBuilder.addQuad(idx0, idx1, idx2, idx3);
+
+
     }
 }

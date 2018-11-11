@@ -9,7 +9,7 @@ import java.util.Arrays;
 
 public class TriangleList
 {
-    private static final boolean MERGE_VERTICES = true;
+    private static final boolean MERGE_VERTICES = false;
 
     // position (x3)
     // normal (x3)
@@ -273,7 +273,7 @@ public class TriangleList
                     floodFill(outline,alreadyVisited,data,trueLevel);
 
                     // use marching squares to convert shape into a mesh
-                    squares.process(data,tileSize,outline,this,tileSize);
+                    squares.process(data,tileSize,outline,this,HEIGHT_SCALE_FACTOR*trueLevel, tileSize);
                 }
             }
         }
